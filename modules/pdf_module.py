@@ -1,6 +1,6 @@
 # modules/pdf_module.py
 import os
-
+import openai # Although not used, it is necessary to make unit test run
 class PDFModule:
     def __init__(self, ai_assistant):
         self.ai_assistant = ai_assistant

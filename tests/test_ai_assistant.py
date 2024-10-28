@@ -6,14 +6,18 @@ from ai_assistant import AIAssistant
 class TestAIAssistant(unittest.TestCase):
     @patch("ai_assistant.openai.Client")
     def test_create_assistant_when_exists(self, MockClient):
-        # Mock existing assistant list with one entry
+        # Create a mock assistant object with the specified name
+        mock_assistant = MagicMock()
+        mock_assistant.name = "Personal AI Assistant"
+        
+        # Mock the client instance and assistant list to return the existing assistant
         mock_client_instance = MockClient.return_value
-        mock_client_instance.beta.assistants.list.return_value = [MagicMock(name="Personal AI Assistant")]
+        mock_client_instance.beta.assistants.list.return_value = [mock_assistant]
 
         # Initialize AIAssistant
         assistant = AIAssistant(name="Personal AI Assistant")
 
-        # Assert that the assistant reused the existing instance
+        # Assert that create was not called because an assistant with the same name already exists
         mock_client_instance.beta.assistants.create.assert_not_called()
 
     @patch("ai_assistant.openai.Client")
@@ -30,14 +34,18 @@ class TestAIAssistant(unittest.TestCase):
 
     @patch("ai_assistant.openai.Client")
     def test_create_vector_store_when_exists(self, MockClient):
-        # Mock existing vector store list with one entry
+        # Create a mock vector store object with the specified name
+        mock_vector_store = MagicMock()
+        mock_vector_store.name = "Assistant Vector Store"
+        
+        # Mock the client instance and vector store list to return the existing vector store
         mock_client_instance = MockClient.return_value
-        mock_client_instance.beta.vector_stores.list.return_value = [MagicMock(name="Assistant Vector Store")]
+        mock_client_instance.beta.vector_stores.list.return_value = [mock_vector_store]
 
         # Initialize AIAssistant
         assistant = AIAssistant()
 
-        # Assert that the vector store reused the existing instance
+        # Assert that create was not called because a vector store with the same name already exists
         mock_client_instance.beta.vector_stores.create.assert_not_called()
 
     @patch("ai_assistant.openai.Client")
@@ -55,15 +63,22 @@ class TestAIAssistant(unittest.TestCase):
     @patch("ai_assistant.setup_logger")
     @patch("ai_assistant.openai.Client")
     def test_logging_for_existing_resources(self, MockClient, MockLogger):
-        # Mock existing resources
-        mock_client_instance = MockClient.return_value
-        mock_client_instance.beta.assistants.list.return_value = [MagicMock(name="Personal AI Assistant")]
-        mock_client_instance.beta.vector_stores.list.return_value = [MagicMock(name="Assistant Vector Store")]
+        # Create mock assistant and vector store objects with the specified names
+        mock_assistant = MagicMock()
+        mock_assistant.name = "Personal AI Assistant"
+        mock_vector_store = MagicMock()
+        mock_vector_store.name = "Assistant Vector Store"
 
-        # Initialize AIAssistant
+        # Mock the client instance to return existing resources
+        mock_client_instance = MockClient.return_value
+        mock_client_instance.beta.assistants.list.return_value = [mock_assistant]
+        mock_client_instance.beta.vector_stores.list.return_value = [mock_vector_store]
+
+        # Initialize AIAssistant with name matching the existing assistant
         assistant = AIAssistant(name="Personal AI Assistant")
 
-        # Assert logging calls
+        # Assert that the logger outputs the correct warnings
         mock_logger_instance = MockLogger.return_value
         mock_logger_instance.warning.assert_any_call("Assistant 'Personal AI Assistant' already exists. Using the existing assistant.")
         mock_logger_instance.warning.assert_any_call("Vector store 'Assistant Vector Store' already exists. Using the existing vector store.")
+
