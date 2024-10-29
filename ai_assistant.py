@@ -4,7 +4,7 @@ from config import OPENAI_API_KEY
 from logger import setup_logger
 
 class AIAssistant:
-    def __init__(self, name="Personal AI Assistant", instructions="Assist with tasks", model="gpt-4", tools=None):
+    def __init__(self, name="Personal AI Assistant", instructions="Assist with tasks", model="gpt-4o-mini", tools=None):
         self.client = openai.Client(api_key=OPENAI_API_KEY)
         self.logger = setup_logger()
         

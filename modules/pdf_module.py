@@ -50,4 +50,8 @@ class PDFModule:
         run = self.client.beta.threads.runs.create_and_poll(
             thread_id=thread.id, assistant_id=assistant_id
         )
-        return run
+
+        messages = list(self.client.beta.threads.messages.list(thread_id=thread.id, run_id=run.id))
+
+        message_content = messages[0].content[0].text
+        return run, message_content
