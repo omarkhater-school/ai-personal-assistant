@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Assistant PDF Query App</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="text-center">Personal AI Assistant App</h1>
+        <form id="queryForm" class="row">
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label for="model">Choose a Model:</label>
+                    <select id="model" name="model" class="form-control">
+                        {% for key in models.keys() %}
+                            <option value="{{ key }}">{{ key }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="directory_path">PDF Directory Path:</label>
+                    <input type="text" class="form-control" id="directory_path" name="directory_path" placeholder="Enter PDF directory path">
+                </div>
+                <div class="form-group">
+                    <label for="question">Query:</label>
+                    <textarea class="form-control" id="question" name="question" rows="4" placeholder="Enter your question"></textarea>
+                </div>
+                <button type="button" class="btn btn-primary" onclick="runQuery()">Run Query</button>
+            </div>
+            <div class="col-md-6">
+                <h4>Model Information</h4>
+                <table class="table table-bordered">
+                    <thead>
+                        <tr>
+                            <th>Model</th>
+                            <th>Description</th>
+                            <th>Context Window</th>
+                            <th>Max Output Tokens</th>
+                            <th>Training Data</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for model, info in models.items() %}
+                        <tr>
+                            <td>{{ model }}</td>
+                            <td>{{ info.description }}</td>
+                            <td>{{ info.context_window }}</td>
+                            <td>{{ info.max_output_tokens }}</td>
+                            <td>{{ info.training_data }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </form>
+        <div id="result" class="mt-4"></div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script>
+        function runQuery() {
+            const model = $("#model").val();
+            const directory_path = $("#directory_path").val();
+            const question = $("#question").val();
+    
+            // Show a loading message
+            $("#result").html(`<div class="alert alert-info">Running query... Please wait.</div>`);
+    
+            // Send the request to run the query
+            $.post("/run_query", { model, directory_path, question })
+                .done(function(data) {
+                    if (data.error) {
+                        $("#result").html(`<div class="alert alert-danger">${data.error}</div>`);
+                    } else {
+                        $("#result").html(`
+                            <h5>Results</h5>
+                            <p><strong>File Batch Status:</strong> ${data.file_batch_status}</p>
+                            <p><strong>Query Result Status:</strong> ${data.query_result_status}</p>
+                            <p><strong>Response:</strong></p>
+                            <div>${data.response}</div>
+                        `);
+                    }
+                })
+                .fail(function() {
+                    $("#result").html(`<div class="alert alert-danger">Error processing the query.</div>`);
+                });
+        }
+    </script>
+    
+</body>
+</html>
