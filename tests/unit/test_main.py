@@ -1,6 +1,9 @@
-# tests/test_main.py
+# tests/unit/test_main.py
 import unittest
 from unittest.mock import patch, MagicMock
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 from main import run_pdf_feature
 
 class TestMainPDFFeature(unittest.TestCase):
@@ -17,21 +20,28 @@ class TestMainPDFFeature(unittest.TestCase):
         mock_file_batch = MagicMock(status="completed")
         mock_pdf_module_instance.upload_directory_to_vector_store.return_value = mock_file_batch
 
-        mock_query_run = MagicMock()
-        mock_query_run.status = "success"
-        mock_pdf_module_instance.query_pdf.return_value = mock_query_run
+        # Mock a Text-like object with a `value` attribute to simulate the real API
+        mock_query_run = MagicMock(status="success")
+        mock_message_content = MagicMock()
+        mock_message_content.value = "This is the answer."
+
+        # Ensure `query_pdf` returns both the mock run and the mock message_content
+        mock_pdf_module_instance.query_pdf.return_value = (mock_query_run, mock_message_content)
 
         # Run the function after setting up mocks
         run_pdf_feature()
 
-        # Verify PDF upload was called
-        mock_pdf_module_instance.upload_directory_to_vector_store.assert_called_once_with("path/to/your/pdf/directory")
+        # Verify PDF upload was called with the expected directory path
+        mock_pdf_module_instance.upload_directory_to_vector_store.assert_called_once_with("D:\\projects\\papers")
         
-        # Verify PDF query was called with the expected parameters
-        mock_pdf_module_instance.query_pdf.assert_called_once_with(
-            "What are the main findings in this report?", "path/to/your/pdf/question_file.pdf"
-        )
+        # Verify PDF query was called with the expected question
+        mock_pdf_module_instance.query_pdf.assert_called_once_with("What are the tree of thoughts")
 
         # Check output or status for verification
         self.assertEqual(mock_file_batch.status, "completed")
         self.assertEqual(mock_query_run.status, "success")
+        self.assertEqual(mock_message_content.value, "This is the answer.")
+
+
+if __name__ == "__main__":
+    unittest.main()

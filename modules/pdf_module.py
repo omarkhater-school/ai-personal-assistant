@@ -1,6 +1,7 @@
 # modules/pdf_module.py
 import os
 import openai # Although not used, it is necessary to make unit test run
+
 class PDFModule:
     def __init__(self, ai_assistant):
         self.ai_assistant = ai_assistant
@@ -51,7 +52,13 @@ class PDFModule:
             thread_id=thread.id, assistant_id=assistant_id
         )
 
+        # Fetch messages for the thread and check for content
         messages = list(self.client.beta.threads.messages.list(thread_id=thread.id, run_id=run.id))
+        if messages and messages[0].content:
+            message_content = messages[0].content[0].text
+            return run, message_content
 
-        message_content = messages[0].content[0].text
-        return run, message_content
+        # Return default values if there's no content
+        return run, "No content available in response."
+
+

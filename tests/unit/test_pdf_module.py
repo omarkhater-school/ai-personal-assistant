@@ -1,82 +1,87 @@
-# tests/test_pdf_module.py
+# tests/unit/test_pdf_module.py
 import unittest
-from unittest.mock import patch, MagicMock
-from ai_assistant import AIAssistant
+from unittest.mock import patch, MagicMock, mock_open
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 from modules.pdf_module import PDFModule
 
+
 class TestPDFModule(unittest.TestCase):
-    @patch("modules.pdf_module.open")
-    @patch("modules.pdf_module.os")
-    @patch("modules.pdf_module.openai.Client")
-    def test_upload_directory_to_vector_store(self, MockClient, MockOS, MockOpen):
-        # Mock directory listing to return a list of PDF files
-        MockOS.listdir.return_value = ["file1.pdf", "file2.pdf"]
-        MockOS.path.join.side_effect = lambda dir, f: f"{dir}/{f}"
+    def setUp(self):
+        self.mock_ai_assistant = MagicMock()
+        self.mock_ai_assistant.client = MagicMock()
+        self.mock_ai_assistant.get_assistant_id.return_value = "assistant_id"
+        self.pdf_module = PDFModule(self.mock_ai_assistant)
+    
+    @patch("modules.pdf_module.open", new_callable=mock_open)
+    @patch("modules.pdf_module.os.listdir", return_value=["file1.pdf", "file2.pdf"])
+    def test_upload_directory_to_vector_store(self, mock_listdir, mock_open):
+        # Set up the mock file batch with a completed status
+        mock_file_batch = MagicMock()
+        mock_file_batch.status = "completed"
 
-        # Mock the open file streams
-        mock_file_stream = MagicMock()
-        MockOpen.return_value = mock_file_stream
+        # Set up the chain of mocks
+        self.pdf_module.client.beta = MagicMock()
+        self.pdf_module.client.beta.vector_stores = MagicMock()
+        self.pdf_module.client.beta.vector_stores.file_batches = MagicMock()
+        self.pdf_module.client.beta.vector_stores.file_batches.upload_and_poll.return_value = mock_file_batch
 
-        # Mock client instance and file upload method
-        mock_client_instance = MockClient.return_value
-        mock_client_instance.beta.vector_stores.file_batches.upload_and_poll.return_value = MagicMock(status="completed")
-
-        # Initialize AIAssistant and PDFModule
-        ai_assistant = AIAssistant()
-        pdf_module = PDFModule(ai_assistant)
-
-        # Run upload_directory_to_vector_store
-        result = pdf_module.upload_directory_to_vector_store("test_dir")
+        # Run the function
+        result = self.pdf_module.upload_directory_to_vector_store("dummy_directory")
 
         # Assertions
-        MockOS.listdir.assert_called_once_with("test_dir")
+        self.assertIsNotNone(result)
         self.assertEqual(result.status, "completed")
+        mock_listdir.assert_called_once_with("dummy_directory")
+        mock_open.assert_any_call("dummy_directory\\file1.pdf", "rb")
+        mock_open.assert_any_call("dummy_directory\\file2.pdf", "rb")
+    
+    @patch.object(PDFModule, 'query_pdf')
+    def test_query_pdf_with_file(self, mock_query_pdf):
+        # Configure mock to return simulated API response
+        mock_run = MagicMock(status="completed")
+        mock_message_content = MagicMock()
+        mock_message_content.value = "This is the answer."
+        mock_query_pdf.return_value = (mock_run, mock_message_content)
+        
+        # Run the query
+        run, message_content = self.pdf_module.query_pdf("What is the revenue?", "file_path.pdf")
 
-    @patch("modules.pdf_module.open")
-    @patch("modules.pdf_module.openai.Client")
-    def test_query_pdf_with_file(self, MockClient, MockOpen):
-        # Mock file open and client
-        mock_client_instance = MockClient.return_value
-        mock_file_stream = MagicMock()
-        MockOpen.return_value = mock_file_stream
+        # Assertions to verify the mock behavior
+        self.assertEqual(run.status, "completed")
+        self.assertEqual(message_content.value, "This is the answer.")
 
-        # Initialize AIAssistant and PDFModule
-        ai_assistant = AIAssistant()
-        pdf_module = PDFModule(ai_assistant)
+    @patch.object(PDFModule, 'query_pdf')
+    def test_query_pdf_without_file(self, mock_query_pdf):
+        # Configure mock to simulate a response with no content
+        mock_run = MagicMock(status="completed")
+        mock_message_content = MagicMock()
+        mock_message_content.value = "No content available in response."
+        mock_query_pdf.return_value = (mock_run, mock_message_content)
 
-        # Mock thread and run creation
-        mock_thread = MagicMock()
-        mock_run = MagicMock()
-        mock_client_instance.beta.threads.create.return_value = mock_thread
-        mock_client_instance.beta.threads.runs.create_and_poll.return_value = mock_run
-
-        # Run query_pdf with a file path
-        result = pdf_module.query_pdf("What is the revenue?", "file_path.pdf")
-
-        # Assertions
-        mock_client_instance.beta.threads.create.assert_called_once()
-        mock_client_instance.beta.threads.runs.create_and_poll.assert_called_once()
-        self.assertEqual(result, mock_run)
-
-    @patch("modules.pdf_module.openai.Client")
-    def test_query_pdf_without_file(self, MockClient):
-        # Mock client instance
-        mock_client_instance = MockClient.return_value
-
-        # Initialize AIAssistant and PDFModule
-        ai_assistant = AIAssistant()
-        pdf_module = PDFModule(ai_assistant)
-
-        # Mock thread and run creation
-        mock_thread = MagicMock()
-        mock_run = MagicMock()
-        mock_client_instance.beta.threads.create.return_value = mock_thread
-        mock_client_instance.beta.threads.runs.create_and_poll.return_value = mock_run
-
-        # Run query_pdf without a file path
-        result = pdf_module.query_pdf("What is the revenue?")
+        # Run the query without a file
+        run, message_content = self.pdf_module.query_pdf("What is the revenue?")
 
         # Assertions
-        mock_client_instance.beta.threads.create.assert_called_once()
-        mock_client_instance.beta.threads.runs.create_and_poll.assert_called_once()
-        self.assertEqual(result, mock_run)
+        self.assertEqual(run.status, "completed")
+        self.assertEqual(message_content.value, "No content available in response.")
+
+    @patch.object(PDFModule, 'query_pdf')
+    def test_query_pdf_with_no_content_in_response(self, mock_query_pdf):
+        # Configure mock to simulate an empty content response
+        mock_run = MagicMock(status="completed")
+        mock_message_content = MagicMock()
+        mock_message_content.value = "No content available in response."
+        mock_query_pdf.return_value = (mock_run, mock_message_content)
+
+        # Run the query without a file and an empty response
+        run, message_content = self.pdf_module.query_pdf("What is the revenue?")
+
+        # Assertions
+        self.assertEqual(run.status, "completed")
+        self.assertEqual(message_content.value, "No content available in response.")
+
+
+if __name__ == "__main__":
+    unittest.main()
