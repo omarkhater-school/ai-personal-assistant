@@ -82,3 +82,21 @@ class TestAIAssistant(unittest.TestCase):
         mock_logger_instance.warning.assert_any_call("Assistant 'Personal AI Assistant' already exists. Using the existing assistant.")
         mock_logger_instance.warning.assert_any_call("Vector store 'Assistant Vector Store' already exists. Using the existing vector store.")
 
+    @patch("ai_assistant.openai.Client")
+    def test_supported_model_gpt_4o_mini(self, MockClient):
+        assistant = AIAssistant(name="Test Assistant", model="gpt-4o-mini")
+        self.assertEqual(assistant.model, "gpt-4o-mini")
+
+    @patch("ai_assistant.openai.Client")
+    def test_supported_model_gpt_4_turbo(self, MockClient):
+        assistant = AIAssistant(name="Test Assistant", model="gpt-4-turbo")
+        self.assertEqual(assistant.model, "gpt-4-turbo")
+
+    @patch("ai_assistant.openai.Client")
+    def test_unsupported_model(self, MockClient):
+        with self.assertRaises(ValueError) as context:
+            AIAssistant(name="Test Assistant", model="unsupported-model")
+        self.assertEqual(
+            str(context.exception),
+            "Unsupported model 'unsupported-model'. Choose either 'gpt-4o-mini' or 'gpt-4-turbo'."
+        )

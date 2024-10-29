@@ -3,8 +3,13 @@ import openai
 from config import OPENAI_API_KEY
 from logger import setup_logger
 
+
+SUPPORTED_MODELS = {"gpt-4o-mini", "gpt-4-turbo"}
+
 class AIAssistant:
     def __init__(self, name="Personal AI Assistant", instructions="Assist with tasks", model="gpt-4o-mini", tools=None):
+        if model not in SUPPORTED_MODELS:
+            raise ValueError(f"Unsupported model '{model}'. Choose either 'gpt-4o-mini' or 'gpt-4-turbo'.")
         self.client = openai.Client(api_key=OPENAI_API_KEY)
         self.logger = setup_logger()
         
