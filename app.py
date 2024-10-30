@@ -48,7 +48,7 @@ def run_query():
 
     file_batch = pdf_module.upload_directory_to_vector_store(directory_path)
     if file_batch:
-        run, message_content = pdf_module.query_pdf(question)
+        run, message_content = pdf_module.query(question)
         formatted_content = format_response(message_content.value)
         response = {
             "file_batch_status": file_batch.status,

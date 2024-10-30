@@ -81,3 +81,32 @@ class AIAssistant:
         else:
             self.logger.warning("Vector store is not initialized.")
             return None
+
+    def query_llm(self, question, file_path=None):
+        assistant_id = self.get_assistant_id()
+        
+        message = {
+            "role": "user",
+            "content": question,
+            "attachments": []
+        }
+
+        if file_path:
+            message_file = self.client.files.create(
+                file=open(file_path, "rb"), purpose="assistants"
+            )
+            file_id = message_file.id
+            message["attachments"].append({"file_id": file_id, "tools": [{"type": "file_search"}]})
+
+        thread = self.client.beta.threads.create(messages=[message])
+
+        run = self.client.beta.threads.runs.create_and_poll(
+            thread_id=thread.id, assistant_id=assistant_id
+        )
+
+        messages = list(self.client.beta.threads.messages.list(thread_id=thread.id, run_id=run.id))
+        if messages and messages[0].content:
+            message_content = messages[0].content[0].text
+            return run, message_content
+
+        return run, "No content available in response."

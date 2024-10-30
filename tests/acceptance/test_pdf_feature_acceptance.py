@@ -17,23 +17,23 @@ class TestPDFFeatureAcceptance(unittest.TestCase):
         cls.test_pdf_file = os.path.join(cls.test_pdf_directory, 'LLAMA3 Herd Of Models.pdf')
         cls.question = "Summarize the contents of this document."
 
-    @patch.object(PDFModule, 'query_pdf')
-    def test_pdf_upload_and_query(self, mock_query_pdf):
+    @patch.object(PDFModule, 'query')
+    def test_pdf_upload_and_query(self, mock_query):
         # Step 1: Upload all PDFs in the directory
         file_batch = self.pdf_module.upload_directory_to_vector_store(self.test_pdf_directory)
         self.assertIsNotNone(file_batch, "File batch upload failed.")
         self.assertEqual(file_batch.status, "completed", "File batch upload not completed.")
 
-        # Step 2: Stub the query_pdf method
+        # Step 2: Stub the query method
         mock_run_result = MagicMock()
         mock_run_result.status = "completed"
         mock_message_content = MagicMock()
         mock_message_content.value = "This is a summary of the document."
         
-        mock_query_pdf.return_value = (mock_run_result, mock_message_content)
+        mock_query.return_value = (mock_run_result, mock_message_content)
 
         # Step 3: Query the uploaded PDF with a question (using the stubbed method)
-        run_result, message_content = self.pdf_module.query_pdf(self.question, self.test_pdf_file)
+        run_result, message_content = self.pdf_module.query(self.question, self.test_pdf_file)
 
         # Assertions
         self.assertIsNotNone(run_result, "Query run failed.")
