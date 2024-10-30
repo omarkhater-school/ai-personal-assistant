@@ -10,7 +10,7 @@ $env:PYTHONPATH = $projectRoot
 # Define directories for the tests
 $unitTestsDir = "tests/unit"
 $acceptanceTestsDir = "tests/acceptance"
-$integrationTestsDir = "tests/integration"
+$integrationTestsDir = "tests/integeration"
 $coverageReportDir = "coverage_report"
 
 # Create the coverage report directory if it doesn't exist

@@ -54,3 +54,16 @@ def test_flan_t5_generate(client):
     response = client.post("/flan-t5", json=payload)
     assert response.status_code == 200
     assert "response" in response.json()
+
+def test_query_pdf_with_private_instructions(client):
+    """
+    Test querying the PDF with private instructions using the local LLM.
+    """
+    payload = {
+        "directory_path": "some/directory/path",
+        "question": "What are the main topics?",
+        "is_private": True
+    }
+    response = client.post("/run_query", json=payload)
+    assert response.status_code == 200
+    assert "response" in response.json()
