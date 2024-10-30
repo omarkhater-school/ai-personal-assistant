@@ -37,46 +37,31 @@ class TestPDFModule(unittest.TestCase):
         mock_open.assert_any_call("dummy_directory\\file1.pdf", "rb")
         mock_open.assert_any_call("dummy_directory\\file2.pdf", "rb")
     
-    @patch.object(PDFModule, 'query_pdf')
-    def test_query_pdf_with_file(self, mock_query_pdf):
+    @patch.object(PDFModule, 'query')
+    def test_query_with_file(self, mock_query):
         # Configure mock to return simulated API response
         mock_run = MagicMock(status="completed")
         mock_message_content = MagicMock()
         mock_message_content.value = "This is the answer."
-        mock_query_pdf.return_value = (mock_run, mock_message_content)
+        mock_query.return_value = (mock_run, mock_message_content)
         
         # Run the query
-        run, message_content = self.pdf_module.query_pdf("What is the revenue?", "file_path.pdf")
+        run, message_content = self.pdf_module.query("What is the revenue?", "file_path.pdf")
 
         # Assertions to verify the mock behavior
         self.assertEqual(run.status, "completed")
         self.assertEqual(message_content.value, "This is the answer.")
 
-    @patch.object(PDFModule, 'query_pdf')
-    def test_query_pdf_without_file(self, mock_query_pdf):
+    @patch.object(PDFModule, 'query')
+    def test_query_without_file(self, mock_query):
         # Configure mock to simulate a response with no content
         mock_run = MagicMock(status="completed")
         mock_message_content = MagicMock()
         mock_message_content.value = "No content available in response."
-        mock_query_pdf.return_value = (mock_run, mock_message_content)
+        mock_query.return_value = (mock_run, mock_message_content)
 
         # Run the query without a file
-        run, message_content = self.pdf_module.query_pdf("What is the revenue?")
-
-        # Assertions
-        self.assertEqual(run.status, "completed")
-        self.assertEqual(message_content.value, "No content available in response.")
-
-    @patch.object(PDFModule, 'query_pdf')
-    def test_query_pdf_with_no_content_in_response(self, mock_query_pdf):
-        # Configure mock to simulate an empty content response
-        mock_run = MagicMock(status="completed")
-        mock_message_content = MagicMock()
-        mock_message_content.value = "No content available in response."
-        mock_query_pdf.return_value = (mock_run, mock_message_content)
-
-        # Run the query without a file and an empty response
-        run, message_content = self.pdf_module.query_pdf("What is the revenue?")
+        run, message_content = self.pdf_module.query("What is the revenue?")
 
         # Assertions
         self.assertEqual(run.status, "completed")
@@ -90,84 +75,6 @@ class TestPDFModule(unittest.TestCase):
         # Assertions
         self.assertIsNone(result, "Expected None when no files are found in the directory.")
         mock_listdir.assert_called_once_with("empty_directory")
-
-    def test_query_pdf_with_file_path(self):
-        # Replace the client with a mock
-        self.pdf_module.client = MagicMock()
-
-        # Set up mock methods on the client
-        mock_run = MagicMock(status="completed")
-        self.pdf_module.client.beta.threads.runs.create_and_poll.return_value = mock_run
-
-        mock_thread = MagicMock()
-        mock_thread.id = "thread_id"
-        self.pdf_module.client.beta.threads.create.return_value = mock_thread
-
-        mock_message_file = MagicMock()
-        mock_message_file.id = "file_id"
-        self.pdf_module.client.files.create.return_value = mock_message_file
-
-        # Mocking the response message
-        mock_message = MagicMock()
-        mock_message.content = [MagicMock(text="This is the answer.")]
-        self.pdf_module.client.beta.threads.messages.list.return_value = [mock_message]
-
-        # Mock the open function to prevent actual file access
-        with patch("builtins.open", mock_open()) as mocked_open:
-            # Run the function with a file path
-            run, message_content = self.pdf_module.query_pdf("What is the revenue?", "file_path.pdf")
-
-            # Assertions
-            self.assertEqual(run.status, "completed")
-            self.assertEqual(message_content, "This is the answer.")
-            self.pdf_module.client.files.create.assert_called_once()
-            mocked_open.assert_called_once_with("file_path.pdf", "rb")
-
-
-    
-
-    def test_query_pdf_no_messages_returned(self):
-        # Replace the client with a mock
-        self.pdf_module.client = MagicMock()
-
-        # Set up mock methods on the client
-        mock_run = MagicMock(status="completed")
-        self.pdf_module.client.beta.threads.runs.create_and_poll.return_value = mock_run
-
-        mock_thread = MagicMock()
-        mock_thread.id = "thread_id"
-        self.pdf_module.client.beta.threads.create.return_value = mock_thread
-
-        # Return an empty list for messages to simulate no messages in response
-        self.pdf_module.client.beta.threads.messages.list.return_value = []
-
-        # Run the function without a file
-        run, message_content = self.pdf_module.query_pdf("What is the revenue?")
-
-        # Assertions
-        self.assertEqual(run.status, "completed")
-        self.assertEqual(message_content, "No content available in response.")
-
-
-
-
-    @patch("modules.pdf_module.PDFModule.query_pdf")
-    @patch("modules.pdf_module.PDFModule.upload_directory_to_vector_store")
-    def test_query_pdf_message_content_empty(self, mock_upload, mock_query_pdf):
-        # Set up the mocked API response to simulate a completed run with empty content
-        mock_run = MagicMock(status="completed")
-        mock_message_content = MagicMock()
-        mock_message_content.value = "No content available in response."
-
-        # Configure the `query_pdf` mock to return these values
-        mock_query_pdf.return_value = (mock_run, mock_message_content)
-
-        # Call the function with the mock in place
-        run, message_content = self.pdf_module.query_pdf("What is the revenue?")
-
-        # Assertions to verify the response
-        self.assertEqual(run.status, "completed")
-        self.assertEqual(message_content.value, "No content available in response.")
 
 if __name__ == "__main__":
     unittest.main()

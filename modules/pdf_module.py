@@ -1,12 +1,21 @@
 # modules/pdf_module.py
 import os
-import openai # Although not used, it is necessary to make unit test run
+from abc import ABC, abstractmethod
 
-class PDFModule:
+class BaseModule(ABC):
     def __init__(self, ai_assistant):
         self.ai_assistant = ai_assistant
         self.client = ai_assistant.client
 
+    @abstractmethod
+    def upload_directory_to_vector_store(self, directory_path):
+        pass
+
+    @abstractmethod
+    def query(self, question, file_path=None):
+        pass
+
+class PDFModule(BaseModule):
     def upload_directory_to_vector_store(self, directory_path):
         vector_store_id = self.ai_assistant.get_vector_store_id()
         file_paths = [os.path.join(directory_path, f) for f in os.listdir(directory_path) if f.endswith('.pdf')]
@@ -26,39 +35,7 @@ class PDFModule:
 
         return file_batch
 
-    def query_pdf(self, question, file_path=None):
-        assistant_id = self.ai_assistant.get_assistant_id()
-        
-        # Prepare the message
-        message = {
-            "role": "user",
-            "content": question,
-            "attachments": []
-        }
-
-        # Attach file if provided
-        if file_path:
-            message_file = self.client.files.create(
-                file=open(file_path, "rb"), purpose="assistants"
-            )
-            file_id = message_file.id
-            message["attachments"].append({"file_id": file_id, "tools": [{"type": "file_search"}]})
-
-        # Create a thread with or without the file attachment
-        thread = self.client.beta.threads.create(messages=[message])
-
-        # Create and poll the run
-        run = self.client.beta.threads.runs.create_and_poll(
-            thread_id=thread.id, assistant_id=assistant_id
-        )
-
-        # Fetch messages for the thread and check for content
-        messages = list(self.client.beta.threads.messages.list(thread_id=thread.id, run_id=run.id))
-        if messages and messages[0].content:
-            message_content = messages[0].content[0].text
-            return run, message_content
-
-        # Return default values if there's no content
-        return run, "No content available in response."
+    def query(self, question, file_path=None):
+        return self.ai_assistant.query_llm(question, file_path)
 
 

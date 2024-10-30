@@ -1,4 +1,4 @@
-# tests/test_ai_assistant.py
+# tests/unit/test_ai_assistant.py
 import unittest
 from unittest.mock import patch, MagicMock
 from ai_assistant import AIAssistant
@@ -100,3 +100,26 @@ class TestAIAssistant(unittest.TestCase):
             str(context.exception),
             "Unsupported model 'unsupported-model'. Choose either 'gpt-4o-mini' or 'gpt-4-turbo'."
         )
+
+    @patch("ai_assistant.openai.Client")
+    def test_query_llm(self, MockClient):
+        # Mock the client and its methods
+        mock_client_instance = MockClient.return_value
+        mock_run = MagicMock(status="completed")
+        mock_message = MagicMock()
+        mock_message.content = [MagicMock(text="This is the answer.")]
+        mock_client_instance.beta.threads.runs.create_and_poll.return_value = mock_run
+        mock_client_instance.beta.threads.messages.list.return_value = [mock_message]
+
+        # Initialize AIAssistant
+        assistant = AIAssistant(name="Test Assistant")
+
+        # Run the query_llm method
+        run, message_content = assistant.query_llm("What is the revenue?")
+
+        # Assertions
+        self.assertEqual(run.status, "completed")
+        self.assertEqual(message_content, "This is the answer.")
+
+if __name__ == "__main__":
+    unittest.main()
