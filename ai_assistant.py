@@ -11,7 +11,7 @@ class AIAssistant:
         if model not in SUPPORTED_MODELS:
             raise ValueError(f"Unsupported model '{model}'. Choose either 'gpt-4o-mini' or 'gpt-4-turbo'.")
         self.client = openai.Client(api_key=OPENAI_API_KEY)
-        self.logger = setup_logger()
+        self.logger = setup_logger("AIAssistantLogger", "logs/ai_assistant.log")  # Corrected logger setup
         
         # Set default tools if none provided
         self.name = name
@@ -92,21 +92,27 @@ class AIAssistant:
         }
 
         if file_path:
-            message_file = self.client.files.create(
-                file=open(file_path, "rb"), purpose="assistants"
-            )
-            file_id = message_file.id
-            message["attachments"].append({"file_id": file_id, "tools": [{"type": "file_search"}]})
+            try:
+                with open(file_path, "rb") as f:
+                    message_file = self.client.files.create(file=f, purpose="assistants")
+                file_id = message_file.id
+                message["attachments"].append({"file_id": file_id, "tools": [{"type": "file_search"}]})
+            except Exception as e:
+                self.logger.error(f"Error opening file {file_path}: {e}")
+                return None, "Error opening file."
 
-        thread = self.client.beta.threads.create(messages=[message])
-
-        run = self.client.beta.threads.runs.create_and_poll(
-            thread_id=thread.id, assistant_id=assistant_id
-        )
-
-        messages = list(self.client.beta.threads.messages.list(thread_id=thread.id, run_id=run.id))
-        if messages and messages[0].content:
-            message_content = messages[0].content[0].text
-            return run, message_content
-
-        return run, "No content available in response."
+        try:
+            thread = self.client.beta.threads.create(messages=[message])
+            run = self.client.beta.threads.runs.create_and_poll(thread_id=thread.id, assistant_id=assistant_id)
+            messages = list(self.client.beta.threads.messages.list(thread_id=thread.id, run_id=run.id))
+            
+            if messages and messages[0].content:
+                message_content = messages[0].content[0].text.value
+                self.logger.info(f"Received message content: {message_content}")
+                return run, message_content
+            else:
+                self.logger.warning("No content available in response.")
+                return run, "No content available in response."
+        except Exception as e:
+            self.logger.error(f"Error during LLM query: {e}")
+            return None, "Error during LLM query."

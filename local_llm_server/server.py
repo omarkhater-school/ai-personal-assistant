@@ -42,7 +42,7 @@ async def get_model_info():
     return {"model": flan_t5_model_name}
 
 # Flan-T5 Endpoint
-@app.post("/flan-t5")
+@app.post("/flan-t5-large/query_pdf")
 async def flan_t5_generate(request: Request):
     inputs = flan_t5_tokenizer(request.prompt, return_tensors="pt")
     outputs = flan_t5_model.generate(inputs["input_ids"], max_new_tokens=50)

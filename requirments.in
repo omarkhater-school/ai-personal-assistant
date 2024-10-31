@@ -7,4 +7,5 @@ httpx
 transformers
 pytest
 torch
-
+respx
+flask_cors
