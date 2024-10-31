@@ -105,14 +105,14 @@ class TestLocalLLM(unittest.TestCase):
         """
         # Mock the AIAssistant to prevent actual API calls
         mock_ai_instance = mock_ai_assistant.return_value
-        mock_ai_instance.query_llm.return_value = ("completed", "This is a mocked response")
+        mock_ai_instance.query_llm.return_value = (None, "This is a mocked response")
 
         # Simulate a request with private data but a public model
         response = self.app.post("/run_query", data={
             "model": "gpt-4-turbo",
             "directory_path": "some/directory/path",
             "question": "What are the main topics?",
-            "is_private": True
+            "is_private": "true"
         })
 
         # Assert that the public API was not called
@@ -120,8 +120,9 @@ class TestLocalLLM(unittest.TestCase):
 
         # Verify the response content
         self.assertEqual(response.status_code, 400)
-        self.assertIn(b"error", response.data)
-        self.assertIn(b"Cannot use public API with private data", response.data)
+        response_data = response.get_json()
+        self.assertIn("error", response_data)
+        self.assertIn("Cannot use public API with private data", response_data["error"])
 
 if __name__ == "__main__":
     unittest.main()

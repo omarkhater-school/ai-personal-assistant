@@ -106,8 +106,13 @@ class TestAIAssistant(unittest.TestCase):
         # Mock the client and its methods
         mock_client_instance = MockClient.return_value
         mock_run = MagicMock(status="completed")
+        
+        # Create a mock message with the correct structure
+        mock_text = MagicMock()
+        mock_text.value = "This is the answer."  # Add the 'value' attribute
         mock_message = MagicMock()
-        mock_message.content = [MagicMock(text="This is the answer.")]
+        mock_message.content = [MagicMock(text=mock_text)]  # Update the structure
+        
         mock_client_instance.beta.threads.runs.create_and_poll.return_value = mock_run
         mock_client_instance.beta.threads.messages.list.return_value = [mock_message]
 
