@@ -27,6 +27,10 @@
                     <label for="question">Query:</label>
                     <textarea class="form-control" id="question" name="question" rows="4" placeholder="Enter your question"></textarea>
                 </div>
+                <div class="form-group form-check">
+                    <input type="checkbox" class="form-check-input" id="is_private" name="is_private">
+                    <label class="form-check-label" for="is_private">Use Local LLM for Private Query</label>
+                </div>
                 <button type="button" class="btn btn-primary" onclick="runQuery()">Run Query</button>
             </div>
             <div class="col-md-6">
@@ -64,13 +68,18 @@
             const model = $("#model").val();
             const directory_path = $("#directory_path").val();
             const question = $("#question").val();
+            const is_private = $("#is_private").is(":checked");
     
             // Show a loading message
             $("#result").html(`<div class="alert alert-info">Running query... Please wait.</div>`);
     
             // Send the request to run the query
-            $.post("/run_query", { model, directory_path, question })
-                .done(function(data) {
+            $.ajax({
+                url: "/run_query",
+                type: "POST",
+                data: { model, directory_path, question, is_private },
+                dataType: "json",
+                success: function(data) {
                     if (data.error) {
                         $("#result").html(`<div class="alert alert-danger">${data.error}</div>`);
                     } else {
@@ -82,10 +91,21 @@
                             <div>${data.response}</div>
                         `);
                     }
-                })
-                .fail(function() {
-                    $("#result").html(`<div class="alert alert-danger">Error processing the query.</div>`);
-                });
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                    console.log("Error details:", {
+                        status: jqXHR.status,
+                        responseText: jqXHR.responseText,
+                        responseJSON: jqXHR.responseJSON
+                    });
+                    
+                    let errorMessage = "Error processing the query.";
+                    if (jqXHR.responseJSON && jqXHR.responseJSON.error) {
+                        errorMessage = jqXHR.responseJSON.error;
+                    }
+                    $("#result").html(`<div class="alert alert-danger">${errorMessage}</div>`);
+                }
+            });
         }
     </script>
     

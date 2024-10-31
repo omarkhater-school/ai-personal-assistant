@@ -1,3 +1,11 @@
 unittest
 unittest.mock
 flask
+fastapi
+uvicorn
+httpx
+transformers
+pytest
+torch
+respx
+flask_cors
