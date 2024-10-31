@@ -74,10 +74,8 @@ def run_query():
             # Route to local LLM
             try:
                 local_server_logger.info("Routing query to local LLM.")
-                response = requests.post("http://127.0.0.1:8000/flan-t5/query_pdf", json={
-                    "directory_path": directory_path,
-                    "question": question,
-                    "is_private": is_private
+                response = requests.post("http://127.0.0.1:8000/flan-t5-large/query_pdf", json={
+                    "prompt": question
                 })
                 response_data = response.json()  # Extract the JSON data from the response
                 local_server_logger.info(f"Received response from local LLM: {response_data}")
