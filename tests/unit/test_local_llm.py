@@ -97,7 +97,7 @@ class TestLocalLLM(unittest.TestCase):
     @patch("builtins.open", new_callable=mock_open)
     @patch("os.listdir", return_value=["file1.pdf", "file2.pdf"])
     @patch("os.path.join", side_effect=lambda directory, filename: f"{directory}/{filename}")
-    @patch("app.AIAssistant")
+    @patch("ai_assistant.AIAssistant")  # Corrected to use ai_assistant.AIAssistant
     @patch("requests.post")
     def test_decline_public_api_with_private_data(self, mock_post, mock_ai_assistant, mock_join, mock_listdir, mock_open):
         """
@@ -108,7 +108,7 @@ class TestLocalLLM(unittest.TestCase):
         mock_ai_instance.query_llm.return_value = (None, "This is a mocked response")
 
         # Simulate a request with private data but a public model
-        response = self.app.post("/run_query", data={
+        response = self.app.post("/pdf_assistant/run_query", data={
             "model": "gpt-4-turbo",
             "directory_path": "some/directory/path",
             "question": "What are the main topics?",
