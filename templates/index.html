@@ -20,16 +20,20 @@
                     </select>
                 </div>
                 <div class="form-group">
-                    <label for="directory_path">PDF Directory Path:</label>
-                    <input type="text" class="form-control" id="directory_path" name="directory_path" placeholder="Enter PDF directory path">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1 mr-2">
+                            <label for="directory_path">PDF Directory Path:</label>
+                            <input type="text" class="form-control" id="directory_path" name="directory_path" placeholder="Enter PDF directory path">
+                        </div>
+                        <div class="form-check mt-4">
+                            <input type="checkbox" class="form-check-input" id="is_private" name="is_private">
+                            <label class="form-check-label" for="is_private">Keep it private!</label>
+                        </div>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label for="question">Query:</label>
                     <textarea class="form-control" id="question" name="question" rows="4" placeholder="Enter your question"></textarea>
-                </div>
-                <div class="form-group form-check">
-                    <input type="checkbox" class="form-check-input" id="is_private" name="is_private">
-                    <label class="form-check-label" for="is_private">Use Local LLM for Private Query</label>
                 </div>
                 <button type="button" class="btn btn-primary" onclick="runQuery()">Run Query</button>
             </div>
@@ -85,9 +89,6 @@
                     } else {
                         $("#result").html(`
                             <h5>Results</h5>
-                            <p><strong>File Batch Status:</strong> ${data.file_batch_status}</p>
-                            <p><strong>Query Result Status:</strong> ${data.query_result_status}</p>
-                            <p><strong>Response:</strong></p>
                             <div>${data.response}</div>
                         `);
                     }
@@ -108,6 +109,5 @@
             });
         }
     </script>
-    
 </body>
 </html>

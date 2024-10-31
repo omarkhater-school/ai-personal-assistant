@@ -14,24 +14,24 @@ CORS(app)  # Enable CORS if needed
 
 MODEL_INFO = {
     "gpt-4o-mini": {
-        "description": "GPT-4o-mini: Small and affordable for fast tasks. Points to gpt-4o-mini-2024-07-18.",
+        "description": "GPT-4o-mini: Small and affordable for fast tasks.",
         "context_window": "128,000 tokens",
         "max_output_tokens": "16,384 tokens",
         "training_data": "Up to Oct 2023",
         "parameters": "1.3 billion"  # This is a placeholder; adjust based on actual info if available
     },
     "gpt-4-turbo": {
-        "description": "GPT-4 Turbo: Latest model with vision capabilities. Points to gpt-4-turbo-2024-04-09.",
+        "description": "GPT-4 Turbo: Latest model with vision capabilities.",
         "context_window": "128,000 tokens",
         "max_output_tokens": "4,096 tokens",
         "training_data": "Up to Dec 2023",
         "parameters": "175 billion"  # This aligns with GPT-4 architecture scale
     },
     "flan-t5-large": {
-        "description": "Flan-T5 Large: Local model deployed for private tasks. Suitable for lightweight, local inference.",
+        "description": "Flan-T5 Large: Local model deployed for private tasks.",
         "context_window": "512 tokens",
         "max_output_tokens": "512 tokens",
-        "training_data": "Up to 2022, on multiple tasks including QA, summarization, and more",
+        "training_data": "Up to 2022",
         "parameters": "780 million"
     }
 }
