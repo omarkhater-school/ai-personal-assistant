@@ -64,7 +64,8 @@ async def query_pdf(request: Request):
             inputs["input_ids"], 
             max_new_tokens=500,
             temperature=0.7,  # Add temperature for more varied responses
-            num_return_sequences=1000,
+            num_return_sequences=2,
+            do_sample=True,
             min_length=10,       # Set minimum length
             num_beams=4,        # Use beam search
             no_repeat_ngram_size=2,  # Avoid repetition
