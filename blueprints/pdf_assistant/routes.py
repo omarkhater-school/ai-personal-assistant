@@ -62,8 +62,9 @@ def run_query():
                 })
                 response_data = response.json()
                 return jsonify(response_data), response.status_code
-            except requests.RequestException as e:
-                return jsonify({"error": f"Failed to communicate with local LLM: {e}"}), 500
+            except requests.ConnectionError:
+                # If the local server is not reachable
+                return jsonify({"error": "Local LLM server is not running. Please start the server and try again."}), 500
         else:
             # Use OpenAI API or other public API
             ai_assistant = AIAssistant(name="My AI Assistant", model=model)
@@ -81,3 +82,4 @@ def run_query():
                 return jsonify({"error": "No PDF files found in the specified directory."}), 400
     except Exception as e:
         return jsonify({"error": f"Failed to process query: {e}"}), 500
+

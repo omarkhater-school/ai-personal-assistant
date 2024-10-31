@@ -99,6 +99,8 @@
                     let errorMessage = "Error processing the query.";
                     if (jqXHR.responseJSON && jqXHR.responseJSON.error) {
                         errorMessage = jqXHR.responseJSON.error;
+                    } else if (jqXHR.status === 500) {
+                        errorMessage = "Local LLM server is not running. Please start the server and try again.";
                     }
                     $("#result").html(`<div class="alert alert-danger">${errorMessage}</div>`);
                 }
