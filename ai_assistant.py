@@ -17,9 +17,38 @@ class AIAssistant:
         self.message_history = []
 
         # Set OpenAI API key from config
-        openai.api_key = OPENAI_API_KEY if model in {"gpt-4o-mini", "gpt-4-turbo"} else None
+        if model in {"gpt-4o-mini", "gpt-4-turbo"}:
+            if OPENAI_API_KEY:
+                openai.api_key = OPENAI_API_KEY
+            else:
+                self.logger.error("OpenAI API key not set in config.")
+                raise ValueError("OpenAI API key not set.")
+        else:
+            openai.api_key = None  # Ensure API key is not used for local models
+
+    def set_model(self, model):
+        """
+        Dynamically set the model to use.
+        """
+        if model not in SUPPORTED_MODELS:
+            raise ValueError(f"Unsupported model '{model}'. Choose from {SUPPORTED_MODELS}.")
+        self.model = model
+        self.logger.info(f"Model switched to {model}.")
+
+        # Update OpenAI API key if necessary
+        if model in {"gpt-4o-mini", "gpt-4-turbo"}:
+            if OPENAI_API_KEY:
+                openai.api_key = OPENAI_API_KEY
+            else:
+                self.logger.error("OpenAI API key not set in config.")
+                raise ValueError("OpenAI API key not set.")
+        else:
+            openai.api_key = None  # Clear API key for local models
 
     def query_llm(self, question, is_private=False):
+        """
+        Query the appropriate language model based on privacy requirements and selected model.
+        """
         if is_private or self.model == "ollama":
             return self._query_ollama(question)
         else:
@@ -28,11 +57,13 @@ class AIAssistant:
     def _query_ollama(self, question):
         try:
             response = requests.post(
-                "http://127.0.0.1:8081/api/chat",  # Use /api/chat endpoint
-                json={"model": "llama3.2", 
-                      "messages": [{"role": "user", "content": question}],
-                      "stream": False
-                      }
+                "http://127.0.0.1:8081/api/chat",
+                json={
+                    "model": "llama3.2",
+                    "messages": [{"role": "user", "content": question}],
+                    "stream": False
+                },
+                timeout=300  # Set a timeout to prevent hanging
             )
             response.raise_for_status()
 
@@ -43,7 +74,7 @@ class AIAssistant:
             # Attempt to parse JSON
             data = response.json()
             content = data.get("message", {}).get("content", "No response from Ollama.")
-            
+
             # Log and store the assistant's reply in message history
             self.logger.info(f"Ollama response content: {content}")
             self.message_history.append({"role": "assistant", "content": content})
@@ -55,19 +86,22 @@ class AIAssistant:
             return "Received an unexpected response format from Ollama."
         except requests.RequestException as e:
             self.logger.error(f"Ollama request failed: {e}")
-            return "Error processing request with Ollama."
+            return "Error processing request with the local model."
+
     def _query_openai(self, question):
         if not openai.api_key:
+            self.logger.error("OpenAI API key not set.")
             return "OpenAI API key not set."
 
         try:
-            response = openai.Completion.create(
-                model="gpt-4-turbo",
-                prompt=question,
+            response = openai.ChatCompletion.create(
+                model=self.model,
+                messages=[{"role": "user", "content": question}],
                 max_tokens=500
             )
-            content = response.choices[0].text.strip()
+            content = response.choices[0].message['content'].strip()
             self.logger.info(f"OpenAI response: {content}")
+            self.message_history.append({"role": "assistant", "content": content})
             return content
         except Exception as e:
             self.logger.error(f"OpenAI request failed: {e}")
