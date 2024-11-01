@@ -36,3 +36,4 @@ def setup_logger(name, log_file, level=logging.INFO):
 app_logger = setup_logger("AppLogger", "logs/app.log")
 local_server_logger = setup_logger("LocalServerLogger", "logs/local_server.log")
 openai_logger = setup_logger("OpenAILogger", "logs/openai.log")
+ai_assistant_logger = setup_logger("AIAssistantLogger", "logs/ai_assistant.log")

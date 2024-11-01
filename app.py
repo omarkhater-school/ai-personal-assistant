@@ -1,23 +1,41 @@
 # app.py
-from flask import Flask, render_template
-from flask_cors import CORS
-
-# Import blueprints
-from blueprints.pdf_assistant.routes import pdf_assistant_bp
-from blueprints.email_assistant.routes import email_assistant_bp
-from blueprints.meeting_assistant.routes import meeting_assistant_bp
-
+from flask import Flask, render_template, request, jsonify, session
+from central_agent import CentralAgent
+from logger import app_logger
+import os
+# Initialize Flask app and session
 app = Flask(__name__)
-CORS(app)
-
-# Register blueprints
-app.register_blueprint(pdf_assistant_bp, url_prefix='/pdf_assistant')
-app.register_blueprint(email_assistant_bp, url_prefix='/email_assistant')
-app.register_blueprint(meeting_assistant_bp, url_prefix='/meeting_assistant')
+app.secret_key = os.environ.get("FLASK_SECRET_KEY", "default_dev_secret")  # Use a default for development
+central_agent = CentralAgent()
 
 @app.route("/")
 def index():
     return render_template("index.html")
 
+@app.route("/chat", methods=["POST"])
+def chat():
+    # Get the user's message from the request
+    user_message = request.form.get("message")
+    app_logger.info(f"User message received: {user_message}")
+
+    try:
+        # Handle the message through CentralAgent
+        response, awaiting_confirmation = central_agent.handle_message(user_message)
+        return jsonify({"response": response, "awaiting_confirmation": awaiting_confirmation})
+    except Exception as e:
+        app_logger.error(f"Error in chat processing: {e}")
+        return jsonify({"error": "Error processing the request."})
+
+@app.route("/confirm_action", methods=["POST"])
+def confirm_action():
+    try:
+        # Confirm the pending action through CentralAgent
+        response = central_agent.confirm_action()
+        return jsonify({"response": response})
+    except Exception as e:
+        app_logger.error(f"Error in action confirmation: {e}")
+        return jsonify({"error": "Error confirming the action."})
+
 if __name__ == "__main__":
+    app_logger.info("Starting the Flask app.")
     app.run(debug=True)
