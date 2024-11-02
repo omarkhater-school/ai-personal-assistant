@@ -1,0 +1,6 @@
+# config.yml
+
+endpoints:
+  ollama_chat: "http://localhost:8081/api/chat"
+  ollama_embed: "http://localhost:8081/api/embed"
+  ollama_generate: "http://localhost:8081/api/generate"
