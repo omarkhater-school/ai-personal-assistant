@@ -57,3 +57,16 @@ def pdf_query_prompt(question, file_names):
         "In your response, focus on identifying document types (e.g., academic papers, reports) and content structures (e.g., text-heavy, with images, diagrams, or tables). "
         "Use specific examples where relevant, and consider any clues from the file names provided."
     )
+
+def assistant_query_prompt(user_message):
+    """
+    Constructs a prompt to guide the assistant in responding naturally to the user's message after intent analysis.
+    """
+    return (
+        "You are a helpful assistant interacting with a user. Here is the user's message:\n\n"
+        f"Message: '{user_message}'\n\n"
+        "Respond directly to the user's query in a natural and concise manner. "
+        "If the query involves specific instructions (like analyzing documents or answering questions based on processed data), "
+        "focus on fulfilling the request using any available context or pre-existing information. "
+        "Be clear and direct in your response, aiming to provide the most relevant information or action."
+    )

@@ -4,7 +4,7 @@ import requests
 from config_loader import get_endpoint
 from logger import setup_logger
 import json
-
+from prompts import assistant_query_prompt
 SUPPORTED_MODELS = {"gpt-4o-mini", "gpt-4-turbo", "ollama"}
 
 class AIAssistant:
@@ -21,10 +21,11 @@ class AIAssistant:
         """
         Query the appropriate language model based on privacy requirements and selected model.
         """
+        formatted_prompt = assistant_query_prompt(question)
         if is_private or self.model == "ollama":
-            return self._query_ollama_chat(question)
+            return self._query_ollama_chat(formatted_prompt)
         else:
-            return self._query_openai(question)
+            return self._query_openai(formatted_prompt)
 
     def _query_ollama_chat(self, question):
         try:
