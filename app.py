@@ -6,7 +6,7 @@ from logger import app_logger
 import os
 import time
 import logging
-
+import traceback
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "default_dev_secret")
 ai_assistant = AIAssistant()  # Using AIAssistant instead of CentralAgent
@@ -54,10 +54,11 @@ def chat():
         return jsonify({
             "response": response,
             "awaiting_confirmation": awaiting_confirmation,
-            "error": None  # Indicate no error
+            "error": None
         })
     except Exception as e:
         app_logger.error(f"Error in chat processing: {e}")
+        app_logger.error(traceback.format_exc())
         status_message = "Error processing the request."
         return jsonify({
             "error": "Error processing the request.",

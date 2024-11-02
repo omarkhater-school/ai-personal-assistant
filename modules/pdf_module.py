@@ -9,10 +9,10 @@ from logger import setup_logger
 from prompts import pdf_query_prompt
 
 class PDFModule:
-    def __init__(self, assistant_query_llm, logger=None):
+    def __init__(self, assistant_query_llm):
         self.query_llm = assistant_query_llm  # Reference to AIAssistant's query method
         self.contains_sensitive_data = False
-        self.logger = logger or setup_logger("PDFModuleLogger", "logs/pdf_module.log")
+        self.logger = setup_logger("PDFModuleLogger", "logs/pdf_module.log")
         self.processed_text = ""
         self.embeddings = []  
         self.file_paths = [] 

@@ -1,29 +1,31 @@
 # ai_assistant.py
 
 import requests
+import re
+import os
+import json
 from config_loader import get_endpoint
 from logger import setup_logger
-import json
-from prompts import assistant_query_prompt, intent_analysis_prompt
-import os
-import re
+from prompts import assistant_query_prompt, intent_analysis_prompt, email_drafting_prompt, clarification_prompt
 from modules.pdf_module import PDFModule
+from modules.email_module import EmailModule
 
 class AIAssistant:
     def __init__(self, name="Personal AI Assistant"):
         self.logger = setup_logger("AIAssistantLogger", "logs/ai_assistant.log")
         self.name = name
         self.message_history = []  # Store all message history for /api/chat requests
-        self.task_count = {}
         self.awaiting_confirmation = False
-        self.pending_action_query = None
-        self.awaiting_directory = False
-        self.processed_directory = None
-        self.pdf_module = None
-        self.awaiting_privacy_confirmation = False
-        self.directory_analyzed = False  # Track if a directory has been analyzed
+        self.pending_action = None
+        self.pdf_module = PDFModule(self.query_llm)
+        self.email_module = EmailModule(self.query_llm)
+
+        # Define handlers for different actions
+        self.action_handlers = {
+            "send_email": self.handle_email_intent,
+            "read_pdfs": self.handle_read_pdfs_intent,
+        }
         self.logger.info("AIAssistant initialized.")
-        self.pdf_module = PDFModule(self.query_llm, logger=self.logger)
 
     def query_llm(self, question, is_private=False):
         """
@@ -73,29 +75,144 @@ class AIAssistant:
 
     def handle_message(self, message):
         """
-        Processes user messages, handling queries about analyzed PDFs directly.
+        Processes user messages and handles different intents.
         """
         if self.awaiting_confirmation:
-            return "Please confirm the pending action to proceed.", True
+            return self.handle_confirmation(message)
 
-        if self.directory_analyzed:
-            return self.handle_pdf_query(message)
+        # Perform intent analysis
+        intent_data = self.query_intent(intent_analysis_prompt(message, self.message_history))
+        self.logger.info(f"Intent analysis result: {intent_data}")
 
-        prompt = intent_analysis_prompt(message)
-        intent_analysis = self.query_intent(prompt)
-        intent = intent_analysis.get("intent", "").lower()
-        privacy = intent_analysis.get("privacy", "").lower()
+        intent = intent_data.get("intent", "").lower() if intent_data.get("intent") else None
+        action = intent_data.get("action", "").lower() if intent_data.get("action") else None
 
-        if intent == "action required (proceed)" and "directory" in message.lower():
-            directory_path = self.extract_directory_path(message)
-            if directory_path:
-                self.directory_analyzed = True
-                return self.confirm_action_for_pdf(directory_path, privacy == "private data")
+        if intent == "clarification needed":
+            return self.handle_clarification_needed(intent_data), False
+
+        elif intent in ["action required (confirm)", "action required (proceed)"]:
+            if action in self.action_handlers:
+                return self.action_handlers[action](message, intent_data)
             else:
-                return "The specified directory path is invalid or does not exist. Please check and try again.", False
+                self.logger.error(f"Unknown action: {action}. Supported actions are: {self.action_handlers.keys()}")
+                return "I'm sorry, I didn't understand the action you want me to perform.", False
 
-        response = self.query_llm(message, is_private=privacy == "private data")
-        return response, False
+        elif intent == "general inquiry":
+            response = self.query_llm(message, is_private=(intent_data.get("privacy") == "private data"))
+            return response, False
+
+        else:
+            response = self.query_llm(message, is_private=(intent_data.get("privacy") == "private data"))
+            return response, False
+
+    def handle_clarification_needed(self, intent_data):
+        """
+        Handles cases where clarification is needed.
+        Constructs a request for missing information based on the chat history.
+        """
+        missing_info = []
+        action = intent_data.get("action", "").lower() if intent_data.get("action") else None
+
+        # Check required fields based on action type
+        if action == "send_email":
+            if not intent_data.get("recipient_name"):
+                missing_info.append("recipient name")
+            if not intent_data.get("subject"):
+                missing_info.append("subject")
+
+        elif action == "read_pdfs":
+            if not intent_data.get("directory_path"):
+                missing_info.append("directory path")
+
+        elif action == "schedule_meeting":
+            if not intent_data.get("participants"):
+                missing_info.append("participants")
+            if not intent_data.get("time"):
+                missing_info.append("time")
+
+        elif action == "internet_search":
+            if not intent_data.get("query"):
+                missing_info.append("query")
+
+        # Create a clarification prompt based on the missing information and chat history
+        response = self.query_llm(clarification_prompt(action, missing_info), is_private=True)
+        
+        self.logger.info(f"Clarification response from LLM: {response}")
+        return response
+
+    def handle_email_intent(self, user_message, intent_data):
+        """
+        Handles the email drafting and confirmation process.
+        """
+        recipient_name = intent_data.get("recipient_name")
+        subject = intent_data.get("subject", "Welcome")
+
+        if not recipient_name:
+            return "Could you please specify the recipient of the email?", False
+
+        to_addr = self.email_module.find_email(recipient_name)
+        if not to_addr:
+            return f"Email address for {recipient_name} not found in contacts.", False
+
+        prompt = email_drafting_prompt(recipient_name, subject, user_message)
+        email_body = self.query_llm(prompt, is_private=True)
+
+        draft_message = f"""
+Here is the drafted email:
+
+To: {to_addr}
+Subject: {subject}
+Body:
+{email_body}
+
+Please confirm if you want to send this email.
+"""
+        self.pending_action = {
+            "action": "send_email",
+            "to_addr": to_addr,
+            "subject": subject,
+            "body": email_body
+        }
+        self.awaiting_confirmation = True
+        return draft_message, True
+
+    def handle_read_pdfs_intent(self, user_message, intent_data):
+        """
+        Handles PDF reading and analysis process.
+        """
+        directory_path = intent_data.get("directory_path")
+        query = intent_data.get("query", "What did you find in the directory?")
+        if not directory_path:
+            return "Could you please specify the directory path for the PDF files?", False
+
+        if self.pdf_module.upload_directory(directory_path):
+                response = self.pdf_module.query(query)
+                return response, False
+        else:
+            return "Failed to process PDF files. Please check the directory path or contents.", False
+
+    def handle_confirmation(self, message):
+        """
+        Handles the user's confirmation for pending actions.
+        """
+        if message.strip().lower() in ['yes', 'y']:
+            if self.pending_action and self.pending_action['action'] == 'send_email':
+                result = self.email_module.send_email(
+                    self.pending_action['to_addr'],
+                    self.pending_action['subject'],
+                    self.pending_action['body']
+                )
+                self.awaiting_confirmation = False
+                self.pending_action = None
+                return result, False
+            else:
+                self.awaiting_confirmation = False
+                self.pending_action = None
+                return "No pending action to confirm.", False
+        else:
+            self.awaiting_confirmation = False
+            self.pending_action = None
+            return "Email sending was canceled.", False
 
     def extract_directory_path(self, message):
         """
@@ -122,7 +239,6 @@ class AIAssistant:
             self.clear_history()
             return "No supported PDF files found in the specified directory.", False
 
-        total_pages = self.pdf_module.get_total_pages(directory_path)
         model_info = "local model"
         self.processed_directory = directory_path
         self.clear_history()
