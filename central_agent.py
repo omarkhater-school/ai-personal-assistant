@@ -1,3 +1,5 @@
+# central_agent.py
+
 import json
 import os
 import re
@@ -30,22 +32,16 @@ class CentralAgent:
         if self.directory_analyzed:
             return self.handle_pdf_query(message)
 
-        # Structured prompt to analyze intent
+        # Perform intent analysis without affecting the main message history
         prompt = intent_analysis_prompt(message)
-        intent_analysis = self.assistant.query_llm(prompt, is_private=True)
+        intent_analysis = self.assistant._query_ollama_intent_analysis(prompt)
         logger.info(f"Intent analysis result: {intent_analysis}")
 
-        # Parse the JSON response for intent and privacy level
-        try:
-            intent_data = json.loads(intent_analysis)
-            intent = intent_data.get("intent", "").lower()
-            privacy = intent_data.get("privacy", "").lower()
-        except json.JSONDecodeError:
-            logger.error("Failed to parse intent analysis response as JSON.")
-            intent = "general inquiry"
-            privacy = "public data"
+        # Extract intent and privacy
+        intent = intent_analysis.get("intent", "").lower()
+        privacy = intent_analysis.get("privacy", "").lower()
 
-        # Handle directory analysis
+        # Handle intent accordingly
         if intent == "action required (proceed)" and "directory" in message.lower():
             directory_path = self.extract_directory_path(message)
             if directory_path:
@@ -54,9 +50,9 @@ class CentralAgent:
             else:
                 return "The specified directory path is invalid or does not exist. Please check and try again.", False
 
-        # Process general inquiries
+        # For other intents or general inquiries, pass the user's message to the LLM for a natural response
         response = self.assistant.query_llm(message, is_private=privacy == "private data")
-        logger.info(f"Response to general inquiry: {response}")
+        logger.info(f"Direct response from LLM: {response}")
         return response, False
 
     def extract_directory_path(self, message):
