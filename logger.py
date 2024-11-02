@@ -34,6 +34,6 @@ def setup_logger(name, log_file, level=logging.INFO):
 
 # Setup loggers for different components
 app_logger = setup_logger("AppLogger", "logs/app.log")
-local_server_logger = setup_logger("LocalServerLogger", "logs/local_server.log")
-openai_logger = setup_logger("OpenAILogger", "logs/openai.log")
 ai_assistant_logger = setup_logger("AIAssistantLogger", "logs/ai_assistant.log")
+email_module_logger = setup_logger("EmailModuleLogger", "logs/email_module.log")
+pdf_module_logger = setup_logger("PDFModuleLogger", "logs/pdf_module.log")

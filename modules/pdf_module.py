@@ -1,32 +1,27 @@
+# pdf_module.py
+
 import os
 import requests
 import PyPDF2
 import re
 from config_loader import get_endpoint
 from logger import setup_logger
-from ai_assistant import AIAssistant
 from prompts import pdf_query_prompt
+
 class PDFModule:
-    def __init__(self, assistant: AIAssistant):
-        self.assistant = assistant
+    def __init__(self, assistant_query_llm):
+        self.query_llm = assistant_query_llm  # Reference to AIAssistant's query method
         self.contains_sensitive_data = False
         self.logger = setup_logger("PDFModuleLogger", "logs/pdf_module.log")
         self.processed_text = ""
-        self.embeddings = []
-        self.file_paths = []  # Store PDF file names for queries
-        self.vector_store = None
+        self.embeddings = []  
+        self.file_paths = [] 
 
-    def upload_directory_to_vector_store(self, directory_path):
+    def upload_directory(self, directory_path):
         """
-        Processes PDF files in the given directory and builds a vector store.
+        Processes PDF files in the given directory and stores text and embeddings locally.
         """
-        pdf_files = []
-        for filename in os.listdir(directory_path):
-            if filename.lower().endswith(".pdf"):
-                file_path = os.path.join(directory_path, filename)
-                pdf_files.append(file_path)
-                self.file_paths.append(filename)  # Track available files
-
+        pdf_files = [os.path.join(directory_path, f) for f in os.listdir(directory_path) if f.lower().endswith(".pdf")]
         if not pdf_files:
             self.logger.info("No PDF files found in the specified directory.")
             return False
@@ -40,6 +35,7 @@ class PDFModule:
                         text = page.extract_text()
                         if text:
                             self.processed_text += text + "\n"
+                self.file_paths.append(os.path.basename(pdf_file))  # Track available files
             except Exception as e:
                 self.logger.error(f"Failed to read {pdf_file}: {e}")
 
@@ -48,13 +44,12 @@ class PDFModule:
             return False
 
         self.contains_sensitive_data = self.scan_for_sensitive_data(self.processed_text)
-        self.embeddings = self.generate_embeddings(self.processed_text)
-        self.vector_store = True  # Placeholder
+        self.embeddings = self.generate_embeddings(self.processed_text)  # Store embeddings in memory
         return True
 
     def generate_embeddings(self, text):
         """
-        Generates embeddings for the provided text using the embedding API.
+        Generates embeddings for the provided text using the Ollama embedding API.
         """
         embed_endpoint = get_endpoint("ollama_embed")
         if not embed_endpoint:
@@ -113,7 +108,7 @@ class PDFModule:
         """
         Answers a question based on the processed PDFs using embeddings.
         """
-        if not self.vector_store or not self.embeddings:
+        if not self.embeddings:
             return "No documents have been processed. Please analyze a directory first."
 
         # Retrieve file names for context
@@ -123,5 +118,5 @@ class PDFModule:
         prompt = pdf_query_prompt(question, file_names)
         
         # Send the prompt to the assistant directly for response
-        response = self.assistant.query_llm(prompt, is_private=self.contains_sensitive_data)
+        response = self.query_llm(prompt, is_private=self.contains_sensitive_data)
         return response
