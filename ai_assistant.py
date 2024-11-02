@@ -81,7 +81,7 @@ class AIAssistant:
             return self.handle_confirmation(message)
 
         # Perform intent analysis
-        intent_data = self.query_intent(intent_analysis_prompt(message, self.message_history))
+        intent_data = self.query_intent(intent_analysis_prompt(message))
         self.logger.info(f"Intent analysis result: {intent_data}")
 
         intent = intent_data.get("intent", "").lower() if intent_data.get("intent") else None
