@@ -1,7 +1,7 @@
 # app.py
 
 from flask import Flask, render_template, request, jsonify
-from central_agent import CentralAgent
+from ai_assistant import AIAssistant
 from logger import app_logger
 import os
 import time
@@ -9,10 +9,11 @@ import logging
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "default_dev_secret")
-central_agent = CentralAgent()
+ai_assistant = AIAssistant()  # Using AIAssistant instead of CentralAgent
 
 # Endpoint to get the status
 status_message = ""
+
 # Filter out status endpoint logs
 class NoStatusEndpointFilter(logging.Filter):
     def filter(self, record):
@@ -41,7 +42,7 @@ def chat():
     try:
         # Update status for each step
         status_message = "Sending to the local model"
-        response, awaiting_confirmation = central_agent.handle_message(user_message)
+        response, awaiting_confirmation = ai_assistant.handle_message(user_message)
         
         # Simulate a delay to show progressive updates (can remove this in production)
         time.sleep(1)
