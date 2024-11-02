@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Assistant Chat</title>
+    <title>IntelliChat Assistant</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <style>
         #chat-box {
@@ -29,7 +29,7 @@
 </head>
 <body>
     <div class="container mt-5">
-        <h1 class="text-center">AI Assistant Chat</h1>
+        <h1 class="text-center">IntelliChat Assistant</h1>
         <div id="chat-box" class="border rounded p-3 mb-3">
             <div id="chat-content"></div>
         </div>
@@ -48,7 +48,7 @@
         $(document).ready(function() {
             function appendMessage(sender, message, isError = false) {
                 const messageClass = isError ? 'text-danger' : '';
-                const formattedMessage = sender === "Assistant" ? marked.parse(message) : message;
+                const formattedMessage = sender === "IntelliChat" ? marked.parse(message) : message;
                 $("#chat-content").append(`<p class="${messageClass}"><strong>${sender}:</strong> <span class="markdown-content">${formattedMessage}</span></p>`);
                 $("#chat-box").scrollTop($("#chat-box")[0].scrollHeight);
             }
@@ -85,7 +85,7 @@
                             appendMessage("Error", data.error, true);
                             $("#status-message").text(data.error);
                         } else {
-                            appendMessage("Assistant", data.response);
+                            appendMessage("IntelliChat", data.response);
                             if (data.awaiting_confirmation) {
                                 $("#confirm-action").show();
                             } else {

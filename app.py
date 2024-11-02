@@ -20,6 +20,8 @@ class NoStatusEndpointFilter(logging.Filter):
 
 # Apply the filter to the app logger
 app_logger.addFilter(NoStatusEndpointFilter())
+flask_logger = logging.getLogger("werkzeug")
+flask_logger.addFilter(NoStatusEndpointFilter())
 
 @app.route("/")
 def index():
