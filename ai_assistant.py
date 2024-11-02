@@ -116,8 +116,8 @@ class AIAssistant:
         """
         Executes the PDF analysis action.
         """
-        self.pdf_module = PDFModule(self)
-        file_batch = self.pdf_module.upload_directory_to_vector_store(directory_path)
+        self.pdf_module = PDFModule(self.query_llm, logger=self.logger)
+        file_batch = self.pdf_module.upload_directory(directory_path)
         if not file_batch:
             self.clear_history()
             return "No supported PDF files found in the specified directory.", False

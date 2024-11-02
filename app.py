@@ -44,7 +44,7 @@ def chat():
         status_message = "Sending to the local model"
         response, awaiting_confirmation = ai_assistant.handle_message(user_message)
         
-        # Simulate a delay to show progressive updates (can remove this in production)
+        # Simulate a delay to show progressive updates
         time.sleep(1)
         
         if awaiting_confirmation:
