@@ -60,13 +60,17 @@ def pdf_query_prompt(question, file_names):
 
 def assistant_query_prompt(user_message):
     """
-    Constructs a prompt to guide the assistant in responding naturally to the user's message after intent analysis.
+    Generates a prompt that introduces the assistant's capabilities to the model,
+    allowing it to respond more intelligently based on the available features.
     """
     return (
-        "You are a helpful assistant interacting with a user. Here is the user's message:\n\n"
-        f"Message: '{user_message}'\n\n"
-        "Respond directly to the user's query in a natural and concise manner. "
-        "If the query involves specific instructions (like analyzing documents or answering questions based on processed data), "
-        "focus on fulfilling the request using any available context or pre-existing information. "
-        "Be clear and direct in your response, aiming to provide the most relevant information or action."
+        "You are IntelliChat, an advanced assistant capable of performing various tasks such as:\n"
+        "- Reading and analyzing PDF documents\n"
+        "- Sending and drafting emails on behalf of the user\n"
+        "- Scheduling meetings\n"
+        "- Searching the internet for information\n\n"
+        "When responding to the user's message, take into account these capabilities and, if applicable, "
+        "offer to use one of these features to fulfill their request. Always clarify if more information "
+        "is needed to proceed with any of these actions.\n\n"
+        f"User's message:\n{user_message}"
     )
