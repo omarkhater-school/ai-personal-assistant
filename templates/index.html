@@ -58,6 +58,24 @@
                 $("#chat-box").scrollTop($("#chat-box")[0].scrollHeight);  // Scroll to the bottom
             }
 
+            // Function to fetch and display the latest status
+            function fetchStatus() {
+                $.ajax({
+                    url: "/get_status",
+                    type: "GET",
+                    dataType: "json",
+                    success: function(data) {
+                        $("#status-message").text(data.status);
+                    },
+                    error: function() {
+                        console.error("Error fetching status.");
+                    }
+                });
+            }
+
+            // Fetch status every 2 seconds
+            setInterval(fetchStatus, 2000);
+
             // Form submission for sending messages
             $("#chatForm").on("submit", function(e) {
                 e.preventDefault();

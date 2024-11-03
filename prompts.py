@@ -34,6 +34,9 @@ If the intent involves any action, extract:
     - If the user requests a summary of all files, use "summarize" as the query.
   - If no specific query is given, assume the user will ask questions about the content after processing.
 
+- **For "internet_search", required fields are:**
+  - "query": The user's search query.
+
 **Examples:**
 - **Send Email Examples:**
   - Message: "Send an email to John about the meeting tomorrow."
@@ -86,6 +89,31 @@ If the intent involves any action, extract:
         "query": "summarize all files"
     }}
 
+    - **Internet Search Examples:**
+  - Message: "What's the stock price of Nvidia today?"
+    - Response: {{
+        "intent": "Action Required (Proceed)",
+        "privacy": "Public Data",
+        "action": "internet_search",
+        "query": "current stock price of Nvidia"
+    }}
+
+  - Message: "Can you check the weather for today?"
+    - Response: {{
+        "intent": "Action Required (Proceed)",
+        "privacy": "Public Data",
+        "action": "internet_search",
+        "query": "today's weather"
+    }}
+
+  - Message: "What's the latest news about AI technology?"
+    - Response: {{
+        "intent": "Action Required (Proceed)",
+        "privacy": "Public Data",
+        "action": "internet_search",
+        "query": "latest news about AI technology"
+    }}
+
 **IMPORTANT INSTRUCTIONS:**
 - **If any required field is missing or empty, set "intent" to "Clarification Needed".**
 - **Do not proceed with the action if required information is missing.**
@@ -99,7 +127,7 @@ If the intent involves any action, extract:
     "tone": "Tone of the email" (if applicable),
     "requires_contact_lookup": true or false (if applicable),
     "directory_path": "Directory path for PDFs" (if applicable),
-    "query": "User's specific request about the PDFs, if any" (if applicable)
+    "query": "User's specific request about the PDFs or the internet search, if any" (if applicable)
 }}
 Message: "{message}"
 """
@@ -184,4 +212,16 @@ You are assisting with {action_text}. Based on the conversation so far, there ar
 
 Review the chat history and generate a clarification request asking the user to provide the necessary details for completing this action.
 Use a polite tone and provide clear instructions to ensure the user knows what information is needed.
+"""
+
+def internet_search_prompt(query, search_results):
+    """
+    Generates a prompt for using search results to answer a question.
+    """
+    return f"""
+Based on the following information from the web:
+{search_results}
+
+Answer the question:
+{query}
 """
