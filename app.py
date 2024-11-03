@@ -9,7 +9,7 @@ import logging
 import traceback
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "default_dev_secret")
-ai_assistant = AIAssistant()  # Using AIAssistant instead of CentralAgent
+ai_assistant = AIAssistant()
 
 # Endpoint to get the status
 status_message = ""
@@ -45,6 +45,7 @@ def chat():
             ai_assistant.set_status("Waiting for the local model to respond")
         
         ai_assistant.set_status("Response received from the local model")
+        ai_assistant.set_status("Ready to help you with your questions.")
         return jsonify({
             "response": response,
             "awaiting_confirmation": awaiting_confirmation,

@@ -1,0 +1,6 @@
+flask
+fastapi
+flask_cors
+PyPDF2
+tavily-python
+PyYAML

@@ -20,7 +20,7 @@ class AIAssistant:
         self.pdf_module = PDFModule(self.query_llm)
         self.email_module = EmailModule(self.query_llm)
         self.search_module = InternetSearchModule(self.query_llm)
-        self.status_message = f"My name is {self.name}."
+        self.status_message = f"Ready to help you with your questions."
         # Define handlers for different actions
         self.action_handlers = {
             "send_email": self.handle_email_intent,
@@ -133,6 +133,8 @@ class AIAssistant:
             self.set_status(f"Responding to the user inquiry...")
             response = self.query_llm(message, is_private=(intent_data.get("privacy") == "private data"))
             return response, False
+        
+        
 
     def handle_clarification_needed(self, intent_data):
         """
@@ -173,6 +175,7 @@ class AIAssistant:
         """
         Handles the email drafting and confirmation process.
         """
+        self.set_status("I need to send an email...")
         recipient_name = intent_data.get("recipient_name")
         subject = intent_data.get("subject", "Welcome")
 
