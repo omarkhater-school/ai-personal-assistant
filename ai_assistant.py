@@ -10,6 +10,7 @@ from prompts import assistant_query_prompt, intent_analysis_prompt, email_drafti
 from modules.pdf_module import PDFModule
 from modules.email_module import EmailModule
 from modules.search_module import InternetSearchModule
+import ollama
 class AIAssistant:
     def __init__(self, name="IntelliChat"):
         self.logger = setup_logger("AIAssistantLogger", "logs/ai_assistant.log")
@@ -21,6 +22,7 @@ class AIAssistant:
         self.email_module = EmailModule(self.query_llm)
         self.search_module = InternetSearchModule(self.query_llm)
         self.status_message = f"Ready to help you with your questions."
+        self.default_intent = self.set_default_intent()
         # Define handlers for different actions
         self.action_handlers = {
             "send_email": self.handle_email_intent,
@@ -35,7 +37,25 @@ class AIAssistant:
     
     def get_status(self):
         return self.status_message
+    
+    def set_default_intent(self):
+        self.logger.info("Setting default intent...")
+        default_query_intent = {
+            "intent": "general inquiry",
+            "privacy": "public data",
+            "action": None,
+            "recipient_name": None,
+            "subject": None,
+            "tone": None,
+            "requires_contact_lookup": False,
+            "directory_path": None,
+            "query": ""
+        }
+        return default_query_intent
 
+    def get_default_intent(self):
+        return self.default_intent
+    
     def handle_internet_search_intent(self, message, intent_data):
         """
         Handles the internet search process.
@@ -52,11 +72,9 @@ class AIAssistant:
         return response, False
     
     def query_llm(self, question, is_private=False):
-        """
-        Query Ollama language model.
-        """
         formatted_prompt = assistant_query_prompt(question)
-        return self._query_ollama_chat(formatted_prompt)
+        response = ollama.chat(model='llama3.2', messages=[{"role": "user", "content": formatted_prompt}])
+        return response['message']['content']
 
     def _query_ollama_chat(self, question):
         try:
@@ -78,24 +96,15 @@ class AIAssistant:
             return "Error processing request with the local model."
 
     def query_intent(self, prompt):
-        """
-        Perform intent analysis using Ollama.
-        """
+        self.logger.info(f"Querying intent with prompt: {prompt}")
         try:
-            ollama_chat_url = get_endpoint("ollama_chat")
-            payload = {
-                "model": "llama3.2",
-                "messages": [{"role": "user", "content": prompt}],
-                "stream": False
-            }
-            response = requests.post(ollama_chat_url, json=payload, timeout=300)
-            response.raise_for_status()
-            content = response.json().get("message", {}).get("content", "{}")
-            intent_data = json.loads(content)
+            response = ollama.chat(model='llama3.2', messages=[{"role": "user", "content": prompt}])
+            intent_data = json.loads(response['message']['content'])
+            self.logger.info(f"Intent analysis result: {intent_data}")
             return intent_data
-        except (requests.RequestException, ValueError, json.JSONDecodeError) as e:
-            self.logger.error(f"Intent analysis request failed: {e}")
-            return {"intent": "general inquiry", "privacy": "public data"}
+        except Exception as e:
+            self.logger.error(f"Intent analysis failed: {e}")
+            return self.get_default_intent()
 
     def handle_message(self, message):
         """
