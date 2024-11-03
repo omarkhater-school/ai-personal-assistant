@@ -28,29 +28,23 @@ flask_logger.addFilter(NoStatusEndpointFilter())
 def index():
     return render_template("index.html")
 
-@app.route("/status")
+@app.route("/get_status")
 def status():
-    global status_message
-    return jsonify({"status": status_message})
+    return jsonify({"status": ai_assistant.get_status()})
 
 @app.route("/chat", methods=["POST"])
 def chat():
-    global status_message
     user_message = request.form.get("message")
     app_logger.info(f"User message received: {user_message}")
 
     try:
         # Update status for each step
-        status_message = "Sending to the local model"
         response, awaiting_confirmation = ai_assistant.handle_message(user_message)
-        
-        # Simulate a delay to show progressive updates
-        time.sleep(1)
-        
+    
         if awaiting_confirmation:
-            status_message = "Waiting for the local model to respond"
+            ai_assistant.set_status("Waiting for the local model to respond")
         
-        status_message = "Response received from the local model"
+        ai_assistant.set_status("Response received from the local model")
         return jsonify({
             "response": response,
             "awaiting_confirmation": awaiting_confirmation,

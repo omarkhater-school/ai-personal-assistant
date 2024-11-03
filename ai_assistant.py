@@ -9,9 +9,9 @@ from logger import setup_logger
 from prompts import assistant_query_prompt, intent_analysis_prompt, email_drafting_prompt, clarification_prompt
 from modules.pdf_module import PDFModule
 from modules.email_module import EmailModule
-
+from modules.search_module import InternetSearchModule
 class AIAssistant:
-    def __init__(self, name="Personal AI Assistant"):
+    def __init__(self, name="IntelliChat"):
         self.logger = setup_logger("AIAssistantLogger", "logs/ai_assistant.log")
         self.name = name
         self.message_history = []  # Store all message history for /api/chat requests
@@ -19,14 +19,38 @@ class AIAssistant:
         self.pending_action = None
         self.pdf_module = PDFModule(self.query_llm)
         self.email_module = EmailModule(self.query_llm)
-
+        self.search_module = InternetSearchModule(self.query_llm)
+        self.status_message = f"My name is {self.name}."
         # Define handlers for different actions
         self.action_handlers = {
             "send_email": self.handle_email_intent,
             "read_pdfs": self.handle_read_pdfs_intent,
+            "internet_search": self.handle_internet_search_intent,
         }
         self.logger.info("AIAssistant initialized.")
 
+    def set_status(self, message):
+        self.status_message = message
+        self.logger.info(f"Status updated: {message}")
+    
+    def get_status(self):
+        return self.status_message
+
+    def handle_internet_search_intent(self, message, intent_data):
+        """
+        Handles the internet search process.
+        """
+        self.logger.info(f"Handling internet search intent with message: {message}")
+        query = intent_data.get("query")
+        if not query:
+            return "Could you please specify what you would like to search for?", False
+
+        # Use the InternetSearchModule to perform search and generate a response
+        self.set_status(f"I need to search the internet for {query}...")
+        response = self.search_module.generate_response(query)
+        self.logger.info(f"Internet search response: {response}")
+        return response, False
+    
     def query_llm(self, question, is_private=False):
         """
         Query Ollama language model.
@@ -80,6 +104,7 @@ class AIAssistant:
         if self.awaiting_confirmation:
             return self.handle_confirmation(message)
 
+        self.set_status(f"Understanding the user intent...")
         # Perform intent analysis
         intent_data = self.query_intent(intent_analysis_prompt(message))
         self.logger.info(f"Intent analysis result: {intent_data}")
@@ -88,9 +113,11 @@ class AIAssistant:
         action = intent_data.get("action", "").lower() if intent_data.get("action") else None
 
         if intent == "clarification needed":
+            self.set_status(f"Clarifying the user intent...")
             return self.handle_clarification_needed(intent_data), False
 
         elif intent in ["action required (confirm)", "action required (proceed)"]:
+            self.set_status(f"Executing the user action...")
             if action in self.action_handlers:
                 return self.action_handlers[action](message, intent_data)
             else:
@@ -98,10 +125,12 @@ class AIAssistant:
                 return "I'm sorry, I didn't understand the action you want me to perform.", False
 
         elif intent == "general inquiry":
+            self.set_status(f"Responding to the user inquiry...")
             response = self.query_llm(message, is_private=(intent_data.get("privacy") == "private data"))
             return response, False
 
         else:
+            self.set_status(f"Responding to the user inquiry...")
             response = self.query_llm(message, is_private=(intent_data.get("privacy") == "private data"))
             return response, False
 
@@ -149,11 +178,12 @@ class AIAssistant:
 
         if not recipient_name:
             return "Could you please specify the recipient of the email?", False
-
+        self.set_status(f"Finding the email address of the recipient...")
         to_addr = self.email_module.find_email(recipient_name)
         if not to_addr:
             return f"Email address for {recipient_name} not found in contacts.", False
 
+        self.set_status(f"Drafting the email...")
         prompt = email_drafting_prompt(recipient_name, subject, user_message)
         email_body = self.query_llm(prompt, is_private=True)
 
@@ -180,14 +210,16 @@ Please confirm if you want to send this email.
         """
         Handles PDF reading and analysis process.
         """
+        self.set_status(f"Reading the PDF files...")
         directory_path = intent_data.get("directory_path")
         query = intent_data.get("query", "What did you find in the directory?")
         if not directory_path:
             return "Could you please specify the directory path for the PDF files?", False
 
         if self.pdf_module.upload_directory(directory_path):
-                response = self.pdf_module.query(query)
-                return response, False
+            self.set_status(f"Querying the PDF files...")
+            response = self.pdf_module.query(query)
+            return response, False
         else:
             return "Failed to process PDF files. Please check the directory path or contents.", False
 
@@ -269,6 +301,8 @@ Please confirm if you want to send this email.
         self.clear_history()
         return f"Action completed: {response}", False
 
+
+    
     def clear_history(self):
         """ Clears the conversation history. """
         self.message_history = []
