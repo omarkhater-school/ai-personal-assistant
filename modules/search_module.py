@@ -1,3 +1,4 @@
+# search_module.py
 import os
 import traceback
 from tavily import TavilyClient
