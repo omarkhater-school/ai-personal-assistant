@@ -35,8 +35,12 @@ class EmailModule:
 
     def find_email(self, name):
         """
-        Finds the email address of a contact by name or directly uses it if it's an email format.
+        Finds the email address of a contact by name or directly uses it if it's in email format.
         """
+        if not isinstance(name, str) or not name:
+            self.logger.warning("Recipient name is missing or not a valid string.")
+            return None
+
         # Check if 'name' is already in email format
         if re.match(r"[^@]+@[^@]+\.[^@]+", name):
             self.logger.info(f"Using direct email address: {name}")
@@ -49,6 +53,7 @@ class EmailModule:
         else:
             self.logger.warning(f"No email found for {name}")
         return email
+
 
     def scan_for_sensitive_data(self, text):
         """
