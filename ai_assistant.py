@@ -8,13 +8,72 @@ import smtplib
 import re
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from config_loader import get_email_config
+from config_loader import get_email_config, get_search_api_key
+from tavily import TavilyClient
 
+
+def query_llm(prompt):
+        """
+        Sends a prompt to the language model and returns the response.
+        """
+        response = ollama.chat(
+            model="IntelliChat",
+            messages=[{"role": "user", "content": prompt}]
+        )
+        return response
 
 def send_email(recipient_name, subject, body):
+    """
+    Sends an email with the specified recipient, subject, and body.
+    Looks up the recipient's email in contacts if only a name is provided.
+    """
     logger = setup_logger("EmailModuleLogger", "logs/email_module.log")
-    logger.info(f"Simulating email sending to {recipient_name} with subject: {subject} and body: {body}")
-    return "Simulated email sending successful."
+    # Load email configuration
+    email_config = get_email_config()
+    smtp_server = email_config.get('smtp_server')
+    smtp_port = email_config.get('smtp_port')
+    username = email_config.get('username')
+    password = email_config.get('password')
+    from_addr = email_config.get('default_from_address')
+
+    # Load contacts
+    contacts_file = 'contacts.json'
+    contacts = {}
+    if os.path.exists(contacts_file):
+        with open(contacts_file, 'r') as f:
+            contacts = json.load(f)
+    else:
+        logger.warning("Contacts file not found.")
+
+    # Find the recipient's email address
+    to_addr = contacts.get(recipient_name) if not re.match(r"[^@]+@[^@]+\.[^@]+", recipient_name) else recipient_name
+    if not to_addr:
+        logger.error("Recipient email not found.")
+        return "Recipient email not found."
+
+    # Compose the email
+    message = MIMEMultipart()
+    message["From"] = from_addr
+    message["To"] = to_addr
+    message["Subject"] = subject
+    message.attach(MIMEText(body, "plain"))
+
+    # Send the email
+    try:
+        with smtplib.SMTP(smtp_server, smtp_port) as server:
+            server.starttls()
+            server.login(username, password)
+            server.sendmail(from_addr, to_addr, message.as_string())
+        logger.info("Email sent successfully.")
+        return "Email sent successfully."
+    except smtplib.SMTPException as e:
+        error_msg = f"SMTP error occurred: {e}"
+        logger.error(error_msg)
+        return error_msg
+    except Exception as e:
+        error_msg = f"An unexpected error occurred: {e}"
+        logger.error(error_msg)
+        return error_msg
     
 def read_pdfs(directory_path, query):
     logger = setup_logger("PDFModuleLogger", "logs/pdf_module.log")
@@ -22,9 +81,45 @@ def read_pdfs(directory_path, query):
     return "Simulated PDF reading successful."
 
 def internet_search(query):
+    """
+    Performs an internet search using the Tavily API and generates a response.
+    If search fails, it returns an error message.
+
+    Parameters:
+        query (str): The search query string.
+        
+    Returns:
+        str: A formatted response based on search results or an error message.
+    """
+    # Initialize logger
     logger = setup_logger("InternetSearchModuleLogger", "logs/internet_search_module.log")
-    logger.info(f"Simulating internet search with query: {query}")
-    return "Simulated internet search successful."
+    
+    # Load API key and initialize Tavily client
+    search_api_key = get_search_api_key()
+    try:
+        tavily_client = TavilyClient(api_key=search_api_key)
+    except Exception as e:
+        logger.error(f"Failed to initialize Tavily client: {e}")
+        return "Unable to initialize search client."
+
+    # Perform the search query
+    try:
+        search_results = tavily_client.get_search_context(query)
+        if isinstance(search_results, str):  # Return if API directly gives an error message
+            return search_results
+    except Exception as e:
+        logger.error(f"Failed to fetch search results: {e}")
+        logger.error(f"Error details: {traceback.format_exc()}")
+        return "Unable to retrieve search results at this time."
+
+    # Generate response using LLM through self.query_llm
+    try:
+        prompt = f"Here are some search results: {search_results}. Based on these, answer the query: '{query}'."
+        return query_llm(prompt)
+    except Exception as e:
+        logger.error(f"Error generating response from LLM: {e}")
+        logger.error(traceback.format_exc())
+        return "Unable to generate a response based on search results."
 
 def schedule_meeting(participants, start_time, end_time):
     logger = setup_logger("MeetingSchedulerModuleLogger", "logs/meeting_scheduler_module.log")
