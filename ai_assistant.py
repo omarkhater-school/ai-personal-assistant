@@ -10,7 +10,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from config_loader import get_email_config, get_search_api_key
 from tavily import TavilyClient
-
+import PyPDF2
 
 def query_llm(prompt):
         """
@@ -74,11 +74,82 @@ def send_email(recipient_name, subject, body):
         error_msg = f"An unexpected error occurred: {e}"
         logger.error(error_msg)
         return error_msg
-    
-def read_pdfs(directory_path, query):
+
+def read_pdfs(directory_path, query="Please summarize the content of the PDFs."):
+    """
+    Processes all PDF files in the specified directory by extracting text, generating embeddings,
+    and answering the provided query based on those embeddings.
+
+    Parameters:
+        directory_path (str): Path to the directory containing PDF files.
+        query (str): The question or query to answer based on the content of the PDFs.
+
+    Returns:
+        str: A response string with answers based on PDF embeddings.
+    """
     logger = setup_logger("PDFModuleLogger", "logs/pdf_module.log")
-    logger.info(f"Simulating PDF reading from directory: {directory_path} with query: {query}")
-    return "Simulated PDF reading successful."
+    if not directory_path:
+        logger.error("No directory path provided.")
+        return "Please specify a directory path to analyze PDF files."
+    
+    # Verify directory and gather PDF files
+    pdf_files = [os.path.join(directory_path, f) for f in os.listdir(directory_path) if f.lower().endswith(".pdf")]
+    if not pdf_files:
+        logger.info("No PDF files found in the specified directory.")
+        return "No PDF files found in the specified directory."
+
+    file_embeddings = {}
+
+    # Process each PDF file to extract text and generate embeddings
+    for pdf_file in pdf_files:
+        text = ""
+        try:
+            with open(pdf_file, 'rb') as f:
+                reader = PyPDF2.PdfReader(f)
+                for page in reader.pages:
+                    page_text = page.extract_text()
+                    if page_text:
+                        text += page_text + "\n"
+            logger.info(f"Text extracted from {pdf_file}.")
+        except Exception as e:
+            logger.error(f"Failed to read {pdf_file}: {e}")
+            continue
+
+        # Generate embeddings for the extracted text and store them
+        try:
+            embeddings = ollama.embed(model="llama3.2", input=text)
+            # Ensure embeddings is list-like, otherwise convert or handle accordingly
+            file_embeddings[os.path.basename(pdf_file)] = list(embeddings) if not isinstance(embeddings, list) else embeddings
+            logger.info(f"Embeddings generated for {pdf_file}.")
+        except Exception as e:
+            logger.error(f"Failed to generate embeddings for {pdf_file}: {e}")
+            continue
+
+    if not file_embeddings:
+        logger.info("No valid text extracted from any PDFs.")
+        return "No valid text extracted from any PDFs."
+
+    # Generate an answer to the query based on the embeddings
+    embeddings_prompt = "\n".join(
+        f"File: {file_name}, Embeddings Summary: {str(embeddings[:3])}..."  # Only take the first 3 items for summary
+        for file_name, embeddings in file_embeddings.items()
+    )
+    full_prompt = (
+        f"The following files have been processed with embeddings:\n{embeddings_prompt}\n\n"
+        f"Based on these files, please answer the question:\n{query}"
+    )
+
+    # Query the assistant with the embeddings and query
+    try:
+        logger.info(f"Querying the model with prompt: {full_prompt}")
+        response = query_llm(full_prompt)
+        
+        response_content = response.get("message", {}).get("content", "No response generated.")
+        return f"Query Response:\n{response_content}"
+    except Exception as e:
+        logger.error(f"Error querying with question '{query}': {e}")
+        return "Error processing your query based on the available documents."
+
 
 def internet_search(query):
     """
@@ -242,7 +313,7 @@ class AIAssistant:
 
     def handle_message(self, message):
         """
-        Processes user messages and handles tool calls if defined in the response.
+        Processes user messages, checks for missing parameters, and handles tool calls if defined in the response.
         """
         self.set_status("Processing your request...")
         try:
@@ -259,6 +330,21 @@ class AIAssistant:
                     tool_name = tool_call["function"]["name"]
                     arguments = tool_call["function"]["arguments"]
                     
+                    if tool_name == "read_pdfs" and "query" not in arguments:
+                        arguments["query"] = "Please summarize the content of the PDFs."
+
+                    # Check for missing parameters
+                    missing_params = self._check_missing_params(tool_name, arguments)
+                    if missing_params:
+                        # Prompt user to provide missing parameters
+                        missing_info_prompt = (
+                            f"It seems I'm missing some information to complete your request. "
+                            f"Please provide the following details for the `{tool_name}` action: {', '.join(missing_params)}."
+                        )
+                        response = self.query_llm(missing_info_prompt)
+                        content = response.get("message", {}).get("content", missing_info_prompt)
+                        return content, False  # Exit after prompting for missing details
+
                     self.logger.info(f"Executing {tool_name} tool with arguments: {arguments}")
                     if tool_name not in self.supported_tools:
                         self.logger.info(f"Unknown tool requested: {tool_name}")
@@ -283,6 +369,7 @@ class AIAssistant:
             self.logger.error(f"Error in processing message: {e}")
             self.logger.error(traceback.format_exc())
             return "An error occurred while processing your request.", False
+
 
 
 
@@ -354,3 +441,17 @@ class AIAssistant:
         3. Explain what you did and the tools you used.
         """
         '''
+
+    def _check_missing_params(self, tool_name, arguments):
+        """
+        Checks for missing required parameters based on tool definitions in get_tools.
+        
+        Returns:
+            list: Missing parameter names if any, otherwise an empty list.
+        """
+        for tool in self.get_tools():
+            if tool["function"]["name"] == tool_name:
+                required_params = tool["function"]["parameters"]["required"]
+                missing_params = [param for param in required_params if param not in arguments or not arguments[param]]
+                return missing_params
+        return []

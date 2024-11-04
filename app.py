@@ -48,7 +48,6 @@ def chat():
         ai_assistant.set_status("Ready to help you with your questions.")
         app_logger.info(f"Response: {response}")
         app_logger.info(f"Awaiting confirmation: {awaiting_confirmation}")
-        
         return jsonify({
             "response": response,
             "awaiting_confirmation": awaiting_confirmation,
