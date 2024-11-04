@@ -17,3 +17,6 @@ api_keys:
   tavily:
     internet_search_api_key: "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"
 
+app_custom:
+  model_name: IntelliChat
+

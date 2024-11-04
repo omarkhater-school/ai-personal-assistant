@@ -4,4 +4,4 @@ flask_cors
 PyPDF2
 tavily-python
 PyYAML
-pip install ollama
+ollama

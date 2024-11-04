@@ -8,9 +8,9 @@ def load_config(file_path="config.yml"):
         config = yaml.safe_load(file)
     return config
 
-def get_endpoint(service_name):
+def get_app_custom():
     config = load_config()
-    return config.get("endpoints", {}).get(service_name)
+    return config.get("app_custom", {})
 
 def get_email_config():
     config = load_config()
