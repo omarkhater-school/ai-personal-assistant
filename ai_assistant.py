@@ -8,19 +8,155 @@ import smtplib
 import re
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from config_loader import get_email_config, get_search_api_key
+from config_loader import get_email_config, get_search_api_key, get_zoho_config
 from tavily import TavilyClient
 import PyPDF2
+import requests
+import json
+from datetime import datetime
+from pytz import timezone
 
 def query_llm(prompt):
         """
         Sends a prompt to the language model and returns the response.
         """
         response = ollama.chat(
-            model="IntelliChat",
+            model="llama3.2",
             messages=[{"role": "user", "content": prompt}]
         )
         return response
+
+
+def schedule_meeting(start_time, end_time, participants, title = "Auto-Generated Meeting"):
+    """
+    Creates a new calendar and schedules a meeting event in Zoho Calendar with times in America/Chicago timezone.
+
+    Parameters:
+        title (str): Title of the meeting event.
+        start_time (str): Start time in 'Dec 5, 2024 8 AM' format.
+        end_time (str): End time in 'Dec 5, 2024 9 AM' format.
+
+    Returns:
+        str: A response message with event link or error details if the operation fails.
+    """
+    # convert participants to list if it's a string
+    if isinstance(participants, str):
+        participants = [participants]
+    scope = "ZohoCalendar.calendar.ALL ZohoCalendar.event.ALL ZohoMeeting.meeting.CREATE ZohoMeeting.meeting.READ"
+    logger = setup_logger("CalendarMeetingLogger", "logs/calendar_meeting.log")
+    zoho_config = get_zoho_config()
+    client_id = zoho_config.get("client_id")
+    client_secret = zoho_config.get("client_secret")
+
+    # Step 1: Get access token
+    def get_access_token(client_id, client_secret, scope, logger):
+        token_url = 'https://accounts.zoho.com/oauth/v2/token'
+        data = {
+            'grant_type': 'client_credentials',
+            'client_id': client_id,
+            'client_secret': client_secret,
+            'scope': scope
+        }
+        try:
+            response = requests.post(token_url, data=data)
+            response.raise_for_status()
+            return response.json()['access_token']
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Error retrieving access token: {e}")
+            return None
+
+    access_token = get_access_token(client_id, client_secret, scope, logger)
+    if not access_token:
+        return "Failed to retrieve access token. Please check your credentials or try again later."
+
+    # Step 2: Create calendar
+    def create_calendar(access_token, logger):
+        url = 'https://calendar.zoho.com/api/v1/calendars'
+        headers = {'Authorization': f'Bearer {access_token}', 'Content-Type': 'application/json'}
+        calendar_data = {
+            "name": "New Calendar",
+            "color": "#101010",
+            "textcolor": "#FFFFFF",
+            "include_infreebusy": "true",
+            "timezone": "America/Chicago",
+            "description": "New Calendar",
+            "private": "enable",
+            "visibility": "true",
+            "public": "freebusy",
+            "reminders": [{"action": "email", "minutes": 15}]
+        }
+        params = {"calendarData": json.dumps(calendar_data)}
+        response = requests.post(url, params=params, headers=headers)
+        response.raise_for_status()
+        if response.status_code == 200:
+            print("Calendar created successfully")
+            return response.json()['calendars'][0]['uid']
+        else:
+            logger.error(f"Error creating calendar: {response.status_code} - {response.text}")
+            return None
+
+    calendar_id = create_calendar(access_token, logger)
+    if not calendar_id:
+        return "Failed to create calendar. Please ensure the API credentials are valid."
+
+    # Step 3: Parse dates in America/Chicago timezone and convert to UTC
+    def parse_dates(start_time_str, end_time_str, logger):
+        date_format = "%b %d, %Y %I %p"
+        chicago_tz = timezone("America/Chicago")
+        try:
+            start_date = chicago_tz.localize(datetime.strptime(start_time_str, date_format)).astimezone(timezone("UTC"))
+            end_date = chicago_tz.localize(datetime.strptime(end_time_str, date_format)).astimezone(timezone("UTC"))
+            start_date_str = start_date.strftime('%Y%m%dT%H%M%SZ')
+            end_date_str = end_date.strftime('%Y%m%dT%H%M%SZ')
+            logger.info(f"Parsed dates successfully: start='{start_date_str}', end='{end_date_str}'")
+            return start_date_str, end_date_str
+        except ValueError:
+            error_msg = (f"Invalid date format. Please provide dates in the format 'Dec 5, 2024 8 AM'. "
+                         f"Received start='{start_time_str}', end='{end_time_str}'.")
+            logger.error(error_msg)
+            return None, None
+
+    start_dt, end_dt = parse_dates(start_time, end_time, logger)
+    if not start_dt or not end_dt:
+        return "Unable to parse start or end time. Please use the format 'Dec 5, 2024 8 AM'."
+
+    # Step 4: Schedule event
+    def schedule_event(access_token, calendar_id, title, start_dt, end_dt, logger):
+        url = f'https://calendar.zoho.com/api/v1/calendars/{calendar_id}/events'
+        headers = {'Authorization': f'Bearer {access_token}', 'Content-Type': 'application/json'}
+        event_data = {
+            "title": title,
+            "dateandtime": {
+                "timezone": "America/Chicago",
+                "start": start_dt,
+                "end": end_dt
+            },
+            "description": "Scheduled meeting with participants",
+            "color": "#0000FF",
+            "conference": "zmeeting",
+            "notify_attendee": 1
+        }
+        params = {"eventdata": json.dumps(event_data)}
+        try:
+            response = requests.post(url, params=params, headers=headers)
+            response.raise_for_status()
+            if response.status_code == 200:
+                event = response.json()
+                meeting_link = event["events"][0]["viewEventURL"]
+                logger.info(f"Meeting scheduled successfully: {meeting_link}")
+                return f"Meeting scheduled successfully. You can view the event here: {meeting_link}"
+            else:
+                error_msg = f"Error scheduling meeting: {response.status_code} - {response.text}"
+                logger.error(error_msg)
+                return error_msg
+        except requests.exceptions.RequestException as e:
+            error_msg = f"Error scheduling meeting: {e}"
+            logger.error(error_msg)
+            return "An error occurred while scheduling the meeting. Please try again later."
+
+    return schedule_event(access_token, calendar_id, title, start_dt, end_dt, logger)
+
+
 
 def send_email(recipient_name, subject, body):
     """
@@ -192,10 +328,6 @@ def internet_search(query):
         logger.error(traceback.format_exc())
         return "Unable to generate a response based on search results."
 
-def schedule_meeting(participants, start_time, end_time):
-    logger = setup_logger("MeetingSchedulerModuleLogger", "logs/meeting_scheduler_module.log")
-    logger.info(f"Simulating meeting scheduling with participants: {participants}, start time: {start_time}, end time: {end_time}")
-    return "Simulated meeting scheduling successful."
 
 class AIAssistant:
     def __init__(self, name="IntelliChat"):
@@ -300,8 +432,20 @@ class AIAssistant:
                     'parameters': {
                         'type': 'object',
                         'properties': {
-                            'participants': {'type': 'string', 'description': 'Participants in the meeting'},
+                            'participants': {
+                                'type': 'string', 
+                                'description': 'Participants in the meeting'},
+                            'start_time': {
+                                'type': 'string', 
+                                'description': 'Start time of the meeting'},
+                            'end_time': {
+                                'type': 'string', 
+                                'description': 'End time of the meeting'},
+                            'title': {
+                                'type': 'string', 
+                                'description': 'Title of the meeting'},
                         },
+                        'required': ['participants', "start_time", "end_time"]
                     },
                 },
             },

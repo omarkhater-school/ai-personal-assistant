@@ -25,3 +25,6 @@ def get_search_api_key():
     config = load_config()
     return config.get("api_keys", {}).get("tavily", {}).get("internet_search_api_key")
 
+def get_zoho_config():
+    config = load_config()
+    return config.get("api_keys", {}).get("zoho", {})

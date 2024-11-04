@@ -1,10 +1,4 @@
 # config.yml
-
-endpoints:
-  ollama_chat: "http://localhost:8081/api/chat"
-  ollama_embed: "http://localhost:8081/api/embed"
-  ollama_generate: "http://localhost:8081/api/generate"
-
 email:
   smtp_server: "smtp.gmail.com"
   smtp_port: 587
@@ -16,6 +10,12 @@ email:
 api_keys:
   tavily:
     internet_search_api_key: "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"
+  zoho:
+    client_id: "1000.8AVJDAVDZ4O49RZD1UYZV69G9J4DVX"
+    client_secret: "aff48ae851bbddc712dfeb79962ae7a9759bb171d4"
+    redirect_uri: "http://localhost:8000/callback"
+    access_token: "1000.14b28c61736d3991c591ae3c9dd7904b.92cfbad79e0a41b70e8c021184d08f03"
+    calendar_id: "c7de1250588c486196902faa13ea35f2"
 
 app_custom:
   model_name: IntelliChat
