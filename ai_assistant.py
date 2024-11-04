@@ -154,38 +154,36 @@ class AIAssistant:
             # Query the model with tools enabled
             response = self.query_llm(message, self.get_tools())
             content = response.get("message", {}).get("content")
-            # Handle response content and tool calls
+            
+            # Handle tool calls if present
             tool_calls = response.get("message", {}).get("tool_calls", [])
+            concatenated_result = ""
+            
             if tool_calls:
-                concatenated_result = ""
                 for tool_call in tool_calls:
                     tool_name = tool_call["function"]["name"]
                     arguments = tool_call["function"]["arguments"]
+                    
                     self.logger.info(f"Executing {tool_name} tool with arguments: {arguments}")
                     if tool_name not in self.supported_tools:
                         self.logger.info(f"Unknown tool requested: {tool_name}")
                         continue
-                    else:
-                        # use the tool name to call the appropriate function
-                        result = globals()[tool_name](**arguments)
-                    # Concatenate the result of each tool call
+                    
+                    # Call the appropriate function using a mapping of tool names to functions
+                    result = globals()[tool_name](**arguments) if tool_name in globals() else "Unsupported tool."
                     concatenated_result += f"{result}\n"
 
-            if not content:
-                # Handle the case where the model returned an empty response (when tools are used)
-                # Use the original message and the concatenated result to prompt the model to explain what it did
-                prompt = f"""
-                Based on this message: {message}\n\n and the following tools used: {tool_calls}, I can see the result is: 
-                
-                {concatenated_result}
-                
-                Respond to the original message in a normal tone, don't mention the tools you used or the result.
-                
-                """
+            # If no content from initial response, generate a natural summary if tool calls were made
+            if not content and concatenated_result:
+                prompt = (
+                    f"Based on this message: '{message}' and the following actions taken:\n\n{concatenated_result}\n\n"
+                    "Provide a friendly response summarizing the actions without mentioning the tools."
+                )
                 response = self.query_llm(prompt)
-                content = response.get("message", {}).get("content")
+                content = response.get("message", {}).get("content", concatenated_result.strip())
+            
+            return content or concatenated_result.strip(), False
 
-            return content, False
         except Exception as e:
             self.logger.error(f"Error in processing message: {e}")
             self.logger.error(traceback.format_exc())
